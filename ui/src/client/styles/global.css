@@ -381,6 +381,12 @@ code,
   font-weight: 600;
 }
 
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
 .card-foot {
   display: flex;
   justify-content: space-between;

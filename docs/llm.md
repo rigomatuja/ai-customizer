@@ -389,6 +389,17 @@ arrays inside:
 can't. The planner walks this graph on every Plan for closure + cycle checks
 (§6.8). Dependency errors are **blockers**, not warnings.
 
+**Gentle-ai detection**. A lightweight tag scan of the master files
+(`~/.claude/CLAUDE.md`, `~/.config/opencode/AGENTS.md`) looking for HTML
+comments of the form `<!-- gentle-ai:<tag> -->` where `<tag>` is
+alphanumeric + `_` + `-`. Any match = gentle-ai is considered installed.
+The server exposes `GET /api/tools/gentle-ai` for UI display, and the
+manager agent is expected to run the same scan via its Read tool when
+authoring customs so it can offer gentle-ai skills/agents as dependencies
+and auto-fill `dependencies.gentleAi` in manifests. The detector lives
+in `ui/src/server/tools/gentle-ai.ts` and is the canonical reference for
+the regex.
+
 **History**. `history.json`. Append-only audit log: one entry per Apply with
 counts, duration, result (`success` / `rolled-back` / `blocked` /
 `partial-failure`), backup path.
@@ -730,6 +741,7 @@ Base URL: `http://127.0.0.1:3000`. All responses are JSON. Error shape:
 | PUT    | `/api/state/projects/:id`               | update project |
 | DELETE | `/api/state/projects/:id[?force=1]`     | delete project (blocked if installations exist unless forced) |
 | GET    | `/api/tools`                            | detection result + effective state (after override) |
+| GET    | `/api/tools/gentle-ai`                  | scans `~/.claude/CLAUDE.md` and `~/.config/opencode/AGENTS.md` for `<!-- gentle-ai:* -->` markers; returns `GentleAiDetection` |
 | GET    | `/api/installations`                    | all install entries (desired state) |
 | POST   | `/api/installations`                    | upsert install entry |
 | DELETE | `/api/installations/:type/:id`          | remove install entry |

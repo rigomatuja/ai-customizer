@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import type { EffectiveToolState, ToolDetection } from '../../shared/types'
 import { readUserConfig } from '../state/config'
 import { detectAllTools } from '../tools/detection'
+import { detectGentleAi } from '../tools/gentle-ai'
 
 export const toolsRoutes = new Hono()
 
@@ -29,4 +30,9 @@ toolsRoutes.get('/', async (c) => {
     },
   }
   return c.json({ detection, effective })
+})
+
+toolsRoutes.get('/gentle-ai', async (c) => {
+  const result = await detectGentleAi()
+  return c.json(result)
 })

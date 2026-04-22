@@ -106,6 +106,19 @@ export interface EffectiveToolState {
   opencode: { detected: ToolStatus; overridden: boolean; enabled: boolean }
 }
 
+export interface GentleAiMasterScan {
+  masterPath: string
+  masterExists: boolean
+  tags: string[]
+}
+
+export interface GentleAiDetection {
+  installed: boolean
+  tags: string[]
+  claude: GentleAiMasterScan
+  opencode: GentleAiMasterScan
+}
+
 export interface AppStateResponse {
   initialized: boolean
   config: UserConfig | null

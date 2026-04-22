@@ -6,6 +6,7 @@ import type {
   CustomDetail,
   CustomsListResponse,
   EffectiveToolState,
+  GentleAiDetection,
   HistoryResponse,
   InstallationsResponse,
   Plan,
@@ -91,6 +92,7 @@ export const api = {
     jsonDelete<{ deleted: boolean }>(`/api/state/projects/${encodeURIComponent(id)}`),
 
   tools: () => request<{ detection: ToolsDetectionResponse; effective: EffectiveToolState }>('/api/tools'),
+  gentleAi: () => request<GentleAiDetection>('/api/tools/gentle-ai'),
 
   installations: () => request<InstallationsResponse>('/api/installations'),
   upsertInstallation: (entry: InstallationEntry) =>

@@ -1,7 +1,13 @@
 import { useState } from 'react'
 import { api, ApiClientError } from '../api/client'
 import type { Tool } from '../../shared/schemas'
-import type { AppStateResponse, ProjectsResponse, ToolDetection } from '../../shared/types'
+import type {
+  AppStateResponse,
+  GentleAiDetection,
+  GentleAiMasterScan,
+  ProjectsResponse,
+  ToolDetection,
+} from '../../shared/types'
 import { useAsyncWithRefetch, type AsyncState } from '../hooks/useAsync'
 import { useAppState, useProjects, useTools } from '../hooks/useAppState'
 
@@ -20,9 +26,77 @@ export function Settings() {
       <CatalogPathPanel state={stateResult} />
       <ManagerPanel />
       <ToolsPanel tools={toolsState} state={stateResult} onSaved={refetchState} />
+      <GentleAiPanel />
       <ProjectsPanel projects={projectsResult} onChanged={refetchProjects} />
       <OrphansPanel />
     </main>
+  )
+}
+
+function GentleAiPanel() {
+  const { state } = useAsyncWithRefetch(() => api.gentleAi(), [])
+
+  return (
+    <section className="panel">
+      <h2>Gentle AI integration</h2>
+      {state.status === 'loading' ? <p className="muted">Detecting…</p> : null}
+      {state.status === 'error' ? <p className="error">{state.error.message}</p> : null}
+      {state.status === 'success' ? <GentleAiContent data={state.data} /> : null}
+    </section>
+  )
+}
+
+function GentleAiContent({ data }: { data: GentleAiDetection }) {
+  const scanRow = (label: string, scan: GentleAiMasterScan) => (
+    <div className="tool-card">
+      <div className="tool-card-head">
+        <strong>{label}</strong>
+        <span
+          className={`badge badge-${!scan.masterExists ? 'error' : scan.tags.length > 0 ? 'ok' : 'warn'}`}
+        >
+          {!scan.masterExists ? 'master missing' : scan.tags.length > 0 ? `${scan.tags.length} tag(s)` : 'no tags'}
+        </span>
+      </div>
+      <dl className="kv compact">
+        <dt>Master</dt>
+        <dd><code>{scan.masterPath}</code></dd>
+        <dt>Tags</dt>
+        <dd>
+          {scan.tags.length === 0 ? (
+            <span className="muted">—</span>
+          ) : (
+            <div className="tag-row">
+              {scan.tags.map((t) => (
+                <span key={t} className="tag">{t}</span>
+              ))}
+            </div>
+          )}
+        </dd>
+      </dl>
+    </div>
+  )
+
+  return (
+    <>
+      <p className={data.installed ? 'muted' : 'muted small'}>
+        {data.installed ? (
+          <>
+            Detected <strong>{data.tags.length}</strong> gentle-ai marker tag
+            {data.tags.length === 1 ? '' : 's'} across the master files.
+            The manager can reference gentle-ai agents and skills when authoring customs.
+          </>
+        ) : (
+          <>
+            No <code>&lt;!-- gentle-ai:* --&gt;</code> markers found in <code>CLAUDE.md</code> or <code>AGENTS.md</code>.
+            Install gentle-ai first if you want its agents/skills available as dependencies.
+          </>
+        )}
+      </p>
+      <div className="tool-detection-grid">
+        {scanRow('Claude', data.claude)}
+        {scanRow('Opencode', data.opencode)}
+      </div>
+    </>
   )
 }
 
