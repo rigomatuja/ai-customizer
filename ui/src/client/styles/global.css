@@ -772,3 +772,110 @@ button:disabled {
   font: inherit;
   font-size: 0.9rem;
 }
+
+/* Install controls */
+.install-active {
+  display: block;
+  margin-bottom: 0.75rem;
+  font-weight: 500;
+}
+
+.install-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.install-group legend {
+  padding: 0 0.35rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-muted);
+}
+
+.install-group[disabled] {
+  opacity: 0.5;
+}
+
+.install-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+}
+
+.install-group select {
+  margin-left: 0.5rem;
+  padding: 0.15rem 0.4rem;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+/* Plan operations */
+.plan-ops {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.plan-op {
+  padding: 0.65rem 0.85rem;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.plan-op-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.plan-physicals {
+  margin: 0.35rem 0 0;
+  padding-left: 1.25rem;
+  font-size: 0.82rem;
+  color: var(--fg-muted);
+}
+
+.plan-physicals li {
+  margin-bottom: 0.15rem;
+}
+
+/* History */
+.history-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.history-item {
+  padding: 0.75rem 1rem;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.history-item header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}

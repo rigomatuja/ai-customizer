@@ -1,8 +1,10 @@
 import { Route, Routes } from 'react-router-dom'
 import { Layout } from './components/Layout'
 import { useAppState } from './hooks/useAppState'
+import { Apply } from './pages/Apply'
 import { CatalogBrowser } from './pages/CatalogBrowser'
 import { CustomDetail } from './pages/CustomDetail'
+import { History } from './pages/History'
 import { Home } from './pages/Home'
 import { Settings } from './pages/Settings'
 import { Welcome } from './pages/Welcome'
@@ -54,6 +56,8 @@ export function App() {
         <Route path="/" element={<Home />} />
         <Route path="/catalog" element={<CatalogBrowser />} />
         <Route path="/catalog/:type/:id" element={<CustomDetail />} />
+        <Route path="/apply" element={<Apply />} />
+        <Route path="/history" element={<History />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

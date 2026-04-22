@@ -1,11 +1,18 @@
 import type {
   ApplicationGuide,
+  ApplyResult,
   CatalogConfig,
   CustomType,
+  HistoryEntry,
+  InstallableType,
+  InstallationEntry,
   Manifest,
   ProjectEntry,
   Scope,
+  TargetScope,
   Tool,
+  TrackerFile,
+  TrackerOp,
   UserConfig,
 } from './schemas'
 
@@ -109,3 +116,65 @@ export interface AppStateResponse {
 export interface ProjectsResponse {
   projects: ProjectEntry[]
 }
+
+export interface InstallationsResponse {
+  installations: InstallationEntry[]
+}
+
+export type PlanOperationKind = 'install' | 'upgrade' | 'uninstall'
+
+export type PhysicalOp =
+  | { kind: 'copy'; from: string; to: string }
+  | { kind: 'delete'; path: string }
+
+export interface PlanOperation {
+  kind: PlanOperationKind
+  customId: string
+  customType: InstallableType
+  fromVersion?: string
+  toVersion?: string
+  target: TargetScope
+  tools: Tool[]
+  physical: PhysicalOp[]
+}
+
+export interface PlanWarning {
+  code: string
+  message: string
+  customId?: string
+}
+
+export interface PlanBlocker {
+  code: string
+  message: string
+  customId?: string
+}
+
+export interface Plan {
+  operations: PlanOperation[]
+  warnings: PlanWarning[]
+  blockers: PlanBlocker[]
+  backupWillBeCreated: boolean
+  currentInstalledCount: number
+}
+
+export interface ApplyResponse {
+  applyId: string
+  result: ApplyResult
+  backupPath: string | null
+  error: string | null
+  durationMs: number
+  installCount: number
+  upgradeCount: number
+  uninstallCount: number
+}
+
+export interface TrackerResponse {
+  tracker: TrackerFile
+}
+
+export interface HistoryResponse {
+  entries: HistoryEntry[]
+}
+
+export type { HistoryEntry, TrackerOp }

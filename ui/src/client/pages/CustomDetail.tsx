@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
 import { CustomType } from '../../shared/schemas'
 import { ErrorBadge } from '../components/ErrorBadge'
+import { InstallControls } from '../components/InstallControls'
 import { useCustomDetail } from '../hooks/useCustom'
 
 export function CustomDetail() {
@@ -66,6 +67,15 @@ export function CustomDetail() {
 
       {m ? (
         <>
+          <InstallControls
+            customId={detail.id}
+            customType={detail.type}
+            supportedTools={detail.versions
+              .find((v) => v.version === m.activeVersion)
+              ?.files.map((f) => f.tool)
+              .filter((t, i, a) => a.indexOf(t) === i) ?? []}
+          />
+
           <section className="panel">
             <h2>Metadata</h2>
             <dl className="kv">

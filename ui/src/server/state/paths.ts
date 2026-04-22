@@ -18,6 +18,7 @@ export function userConfigPaths() {
     root,
     config: path.join(root, 'config.json'),
     projects: path.join(root, 'projects.json'),
+    installations: path.join(root, 'installations.json'),
     installState: path.join(root, 'install-state.json'),
     history: path.join(root, 'history.json'),
     hookRegistry: path.join(root, 'hook-registry.json'),

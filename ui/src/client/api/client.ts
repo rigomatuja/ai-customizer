@@ -1,15 +1,22 @@
 import type {
   ApiError,
   AppStateResponse,
+  ApplyResponse,
   CatalogOverview,
   CustomDetail,
   CustomsListResponse,
   EffectiveToolState,
+  HistoryResponse,
+  InstallationsResponse,
+  Plan,
   ProjectsResponse,
   ToolsDetectionResponse,
+  TrackerResponse,
 } from '../../shared/types'
 import type {
   CustomType,
+  InstallableType,
+  InstallationEntry,
   ProjectCreateInput,
   ProjectEntry,
   ProjectUpdateInput,
@@ -84,4 +91,17 @@ export const api = {
     jsonDelete<{ deleted: boolean }>(`/api/state/projects/${encodeURIComponent(id)}`),
 
   tools: () => request<{ detection: ToolsDetectionResponse; effective: EffectiveToolState }>('/api/tools'),
+
+  installations: () => request<InstallationsResponse>('/api/installations'),
+  upsertInstallation: (entry: InstallationEntry) =>
+    jsonPost<InstallationEntry>('/api/installations', entry),
+  removeInstallation: (customType: InstallableType, customId: string) =>
+    jsonDelete<{ deleted: boolean }>(
+      `/api/installations/${customType}/${encodeURIComponent(customId)}`,
+    ),
+
+  plan: () => request<Plan>('/api/apply/plan'),
+  apply: () => jsonPost<ApplyResponse>('/api/apply', {}),
+  history: () => request<HistoryResponse>('/api/apply/history'),
+  tracker: () => request<TrackerResponse>('/api/apply/tracker'),
 }

@@ -168,3 +168,75 @@ export type ProjectCreateInput = z.infer<typeof ProjectCreateInputSchema>
 
 export const ProjectUpdateInputSchema = ProjectCreateInputSchema.partial()
 export type ProjectUpdateInput = z.infer<typeof ProjectUpdateInputSchema>
+
+export const TargetScopeSchema = z.union([
+  z.object({ scope: z.literal('global') }),
+  z.object({ scope: z.literal('project'), projectId: z.string().min(1) }),
+])
+export type TargetScope = z.infer<typeof TargetScopeSchema>
+
+export const InstallableType = z.enum(['skill', 'agent'])
+export type InstallableType = z.infer<typeof InstallableType>
+
+export const InstallationEntrySchema = z.object({
+  customId: CustomId,
+  customType: InstallableType,
+  target: TargetScopeSchema,
+  tools: z.array(Tool).min(1),
+})
+export type InstallationEntry = z.infer<typeof InstallationEntrySchema>
+
+export const InstallationsFileSchema = z.object({
+  schemaVersion: z.literal('1.0'),
+  installations: z.array(InstallationEntrySchema),
+})
+export type InstallationsFile = z.infer<typeof InstallationsFileSchema>
+
+export const TrackerOpTypeSchema = z.enum(['copy', 'json-merge'])
+export type TrackerOpType = z.infer<typeof TrackerOpTypeSchema>
+
+export const TrackerOpSchema = z.object({
+  opId: z.string().min(1),
+  type: TrackerOpTypeSchema,
+  customId: CustomId,
+  customType: InstallableType,
+  version: SemverString,
+  tool: Tool,
+  target: TargetScopeSchema,
+  toPath: z.string().min(1),
+  fromPath: z.string().optional(),
+  jsonPath: z.string().optional(),
+  contentHash: z.string().optional(),
+  installedAt: z.string().min(1),
+})
+export type TrackerOp = z.infer<typeof TrackerOpSchema>
+
+export const TrackerFileSchema = z.object({
+  schemaVersion: z.literal('1.0'),
+  catalogPath: z.string().min(1),
+  lastApply: z.string().nullable(),
+  operations: z.array(TrackerOpSchema),
+})
+export type TrackerFile = z.infer<typeof TrackerFileSchema>
+
+export const ApplyResultSchema = z.enum(['success', 'rolled-back', 'rollback-failed'])
+export type ApplyResult = z.infer<typeof ApplyResultSchema>
+
+export const HistoryEntrySchema = z.object({
+  applyId: z.string().min(1),
+  timestamp: z.string().min(1),
+  result: ApplyResultSchema,
+  installCount: z.number().int().nonnegative(),
+  upgradeCount: z.number().int().nonnegative(),
+  uninstallCount: z.number().int().nonnegative(),
+  backupPath: z.string().nullable(),
+  error: z.string().nullable(),
+  durationMs: z.number().nonnegative(),
+})
+export type HistoryEntry = z.infer<typeof HistoryEntrySchema>
+
+export const HistoryFileSchema = z.object({
+  schemaVersion: z.literal('1.0'),
+  entries: z.array(HistoryEntrySchema),
+})
+export type HistoryFile = z.infer<typeof HistoryFileSchema>

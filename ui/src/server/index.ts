@@ -1,8 +1,10 @@
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { getCatalogPath } from './catalog/paths'
+import { applyRoutes } from './routes/apply'
 import { catalogRoutes } from './routes/catalog'
 import { customsRoutes } from './routes/customs'
+import { installationsRoutes } from './routes/installations'
 import { stateRoutes } from './routes/state'
 import { toolsRoutes } from './routes/tools'
 import { ensureUserConfigDir } from './state/config'
@@ -14,8 +16,8 @@ app.get('/api/health', (c) =>
   c.json({
     ok: true,
     service: 'ai-customizer',
-    version: '0.4.0',
-    milestone: 'M4',
+    version: '0.5.0',
+    milestone: 'M5',
   }),
 )
 
@@ -23,6 +25,8 @@ app.route('/api/catalog', catalogRoutes)
 app.route('/api/customs', customsRoutes)
 app.route('/api/state', stateRoutes)
 app.route('/api/tools', toolsRoutes)
+app.route('/api/installations', installationsRoutes)
+app.route('/api/apply', applyRoutes)
 
 const port = Number(process.env.PORT) || 3000
 const hostname = '127.0.0.1'
