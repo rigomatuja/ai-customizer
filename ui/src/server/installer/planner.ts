@@ -21,6 +21,7 @@ import type {
 } from '../../shared/types'
 import { isKnownTrigger } from '../catalog/triggers'
 import type { LoadedCatalog } from '../catalog/loader'
+import { hashFileIfExists } from './fs-utils'
 import { resolveInstallPath } from './paths'
 import { activeEntriesFor, activeGuideHashFor, globalMasterPath } from './patches'
 
@@ -143,7 +144,7 @@ function trackerInstallsFor(tracker: TrackerFile) {
   return map
 }
 
-export function computePlan(input: PlannerInput): Plan {
+export async function computePlan(input: PlannerInput): Promise<Plan> {
   const { catalogPath, catalog, installations, tracker, projects, guide, triggersFile, manifests } = input
   const operations: PlanOperation[] = []
   const patchOperations: PlanPatchOp[] = []
@@ -210,7 +211,30 @@ export function computePlan(input: PlannerInput): Plan {
         prev.tools.length !== requestedTools.length ||
         !prev.tools.every((t) => requestedTools.includes(t)))
 
-    if (!needsInstall && !needsUpgrade) continue
+    if (!needsInstall && !needsUpgrade) {
+      // Desired state matches tracker, but filesystem may have drifted.
+      // Compare each tracked file's current content hash against what
+      // we recorded at install time. Emit non-blocking warnings.
+      const ops = trackerOpsFor(tracker, entry.customType, entry.customId)
+      for (const op of ops) {
+        if (op.type !== 'copy' || !op.contentHash) continue
+        const currentHash = await hashFileIfExists(op.toPath)
+        if (currentHash === null) {
+          warnings.push({
+            code: 'drift-missing',
+            message: `${key} (${op.tool}) is tracked as installed but the file is missing at ${op.toPath}. Re-Apply to restore.`,
+            customId: entry.customId,
+          })
+        } else if (currentHash !== op.contentHash) {
+          warnings.push({
+            code: 'drift-modified',
+            message: `${key} (${op.tool}) has been modified since install (${op.toPath}). A future Apply will overwrite your changes.`,
+            customId: entry.customId,
+          })
+        }
+      }
+      continue
+    }
 
     const { physical, errors } = buildInstallPhysicals({
       catalogPath,

@@ -31,7 +31,7 @@ async function buildContext() {
 
 applyRoutes.get('/plan', async (c) => {
   const ctx = await buildContext()
-  const plan = computePlan({
+  const plan = await computePlan({
     catalogPath: ctx.catalogPath,
     catalog: ctx.catalog,
     installations: ctx.installations,
@@ -46,7 +46,7 @@ applyRoutes.get('/plan', async (c) => {
 
 applyRoutes.post('/', async (c) => {
   const ctx = await buildContext()
-  const plan = computePlan({
+  const plan = await computePlan({
     catalogPath: ctx.catalogPath,
     catalog: ctx.catalog,
     installations: ctx.installations,

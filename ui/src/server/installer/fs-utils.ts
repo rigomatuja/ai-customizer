@@ -62,6 +62,11 @@ export async function hashFile(filePath: string): Promise<string> {
   return 'sha256:' + createHash('sha256').update(buf).digest('hex')
 }
 
+export async function hashFileIfExists(filePath: string): Promise<string | null> {
+  if (!existsSync(filePath)) return null
+  return hashFile(filePath)
+}
+
 export async function readJsonIfExists<T>(filePath: string): Promise<T | null> {
   if (!existsSync(filePath)) return null
   try {
