@@ -6,7 +6,7 @@ One git-versioned catalog of your customs (skills, agents, patches), a local
 web UI to install and uninstall them atomically, and a manager agent that
 writes the files for you when you ask.
 
-**Status**: v1.0.4. Local-use stable. Linux and macOS supported.
+**Status**: v1.0.7. Local-use stable. Linux and macOS supported.
 
 ---
 
@@ -15,14 +15,15 @@ writes the files for you when you ask.
 1. [How it fits together](#how-it-fits-together)
 2. [Requirements](#requirements)
 3. [Install](#install)
-4. [First run](#first-run)
-5. [Hello world](#hello-world)
-6. [Daily workflow](#daily-workflow)
-7. [Features and disk layout](#features-and-disk-layout)
-8. [Concepts reference](#concepts-reference)
-9. [Scripts and env vars](#scripts-and-env-vars)
-10. [Troubleshooting](#troubleshooting)
-11. [Not in v1](#not-in-v1)
+4. [Update](#update)
+5. [First run](#first-run)
+6. [Hello world](#hello-world)
+7. [Daily workflow](#daily-workflow)
+8. [Features and disk layout](#features-and-disk-layout)
+9. [Concepts reference](#concepts-reference)
+10. [Scripts and env vars](#scripts-and-env-vars)
+11. [Troubleshooting](#troubleshooting)
+12. [Not in v1](#not-in-v1)
 
 ---
 
@@ -99,24 +100,56 @@ After cloning, the catalog root is `<wherever-you-cloned>/my-catalog/`.
 Remember that path — the UI shows it in Settings and the manager uses it
 when it writes files.
 
-### 2. Install the UI
+### 2. Install and launch — one script
+
+From the catalog root:
 
 ```bash
-cd ui
-npm install
+./install.sh
 ```
 
-### 3. Launch
+The installer checks prereqs (Node 20+, npm, git), runs `npm install` inside
+`ui/`, then starts the dev server in the foreground. Ctrl+C to stop.
 
-```bash
-npm run dev
-```
-
-This starts two processes concurrently:
+Two processes start concurrently:
 - Hono API server on `http://127.0.0.1:3000`
 - Vite + React dev server on `http://127.0.0.1:5173` (proxies `/api/*` to :3000)
 
 Open `http://127.0.0.1:5173` in a browser.
+
+**Prefer to do it by hand?**
+
+```bash
+cd ui
+npm install
+npm run dev
+```
+
+---
+
+## Update
+
+Pull the latest template files from the official upstream repo without
+touching anything you've created locally:
+
+```bash
+./update.sh
+```
+
+**Upstream wins** for: `ui/`, `manager/`, `docs/`, `README.md`, `LICENSE`,
+`.gitignore`.
+
+**Never touched**: `customizations/**`, `application-guide.json`,
+`.ai-customizer/triggers.json`, `.ai-customizer/catalog.json`.
+
+The script adds an `upstream` git remote on first run (pointing at the
+official repo), fetches `main`, and checks out each upstream path into your
+working tree. Review with `git diff`, then commit when you're happy — the
+updater never commits for you.
+
+If `ui/package.json` changed, the script prints a reminder to run
+`cd ui && npm install`. If `manager/` changed, it reminds you to reinstall
+the manager from **Settings → Manager → Reinstall** inside the UI.
 
 ---
 
@@ -707,14 +740,15 @@ The safest order:
 3. Close the UI.
 4. `rm -rf ~/.config/ai-customizer/` (or just `install-state.json` +
    `history.json` if you want to keep backups).
-5. Clone a fresh catalog somewhere else, `cd ui && npm install && npm run dev`,
-   run the wizard. New state dir, new catalog, no leftovers.
+5. Clone a fresh catalog somewhere else, `./install.sh`, run the wizard.
+   New state dir, new catalog, no leftovers.
 
 **How do I update the manager after a template pull?**
-After `git pull` in the catalog, the manager folder may have a new
-version. Settings → Manager shows a version mismatch indicator. Click
-**Reinstall** to overwrite the old manager files with the new version.
-Atomic: snapshots prior content, rolls back on any per-tool copy failure.
+After `./update.sh` (or a manual `git pull`) in the catalog, the manager
+folder may have a new version. Settings → Manager shows a version mismatch
+indicator. Click **Reinstall** to overwrite the old manager files with the
+new version. Atomic: snapshots prior content, rolls back on any per-tool
+copy failure.
 
 **Where are past Apply backups?**
 `~/.config/ai-customizer/backups/apply-YYYYMMDD-HHMMSS.tar.gz`. Last 10
