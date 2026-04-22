@@ -3,8 +3,10 @@ import type {
   CatalogConfig,
   CustomType,
   Manifest,
+  ProjectEntry,
   Scope,
   Tool,
+  UserConfig,
 } from './schemas'
 
 export type IssueLevel = 'error' | 'warning'
@@ -75,4 +77,35 @@ export interface ApiError {
   error: string
   code?: string
   details?: unknown
+}
+
+export type ToolStatus = 'ok' | 'partial' | 'missing'
+
+export interface ToolDetection {
+  tool: Tool
+  binaryPath: string | null
+  configDir: string
+  configExists: boolean
+  status: ToolStatus
+}
+
+export interface ToolsDetectionResponse {
+  claude: ToolDetection
+  opencode: ToolDetection
+}
+
+export interface EffectiveToolState {
+  claude: { detected: ToolStatus; overridden: boolean; enabled: boolean }
+  opencode: { detected: ToolStatus; overridden: boolean; enabled: boolean }
+}
+
+export interface AppStateResponse {
+  initialized: boolean
+  config: UserConfig | null
+  catalogPath: string
+  userConfigDir: string
+}
+
+export interface ProjectsResponse {
+  projects: ProjectEntry[]
 }

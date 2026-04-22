@@ -580,3 +580,195 @@ code,
 .empty-state h3 {
   margin: 0 0 0.5rem;
 }
+
+/* Nav right-aligned item */
+.app-nav-right {
+  margin-left: auto;
+}
+
+/* Common utilities */
+.row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.small {
+  font-size: 0.85rem;
+}
+
+.error {
+  color: var(--danger);
+}
+
+.code-block {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-elev-2);
+  border-radius: 4px;
+  margin: 0.5rem 0;
+  word-break: break-all;
+}
+
+.button-secondary {
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--border);
+}
+.button-secondary:hover {
+  background: var(--bg-elev-2);
+  color: var(--fg);
+}
+
+.button-danger {
+  background: var(--danger);
+}
+
+.button-sm {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+button.button,
+button.button-secondary,
+button.button-danger {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* KV compact */
+.kv.compact {
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+/* Welcome page */
+.welcome-page {
+  max-width: 720px;
+}
+
+.welcome-footer {
+  padding: 1rem;
+  border-top: 1px solid var(--border);
+  margin-top: 2rem;
+  font-size: 0.9rem;
+}
+
+/* Tool detection cards */
+.tool-detection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.tool-card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  background: var(--bg-elev-2);
+}
+
+.tool-card-ok {
+  border-color: var(--success);
+}
+.tool-card-partial {
+  border-color: var(--warn);
+}
+.tool-card-missing {
+  border-color: var(--danger);
+}
+
+.tool-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  gap: 0.5rem;
+}
+
+.tool-override {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--fg-muted);
+}
+.tool-override select {
+  margin-left: 0.5rem;
+  padding: 0.15rem 0.4rem;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-family: inherit;
+}
+
+.badge-ok {
+  background: rgba(107, 207, 127, 0.2);
+  color: var(--success);
+}
+
+/* Projects list (settings) */
+.projects-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+}
+
+.projects-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+}
+
+.projects-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.projects-add-form {
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.form-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--fg-muted);
+}
+
+.form-row input {
+  padding: 0.35rem 0.6rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.9rem;
+}

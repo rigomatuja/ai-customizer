@@ -1,16 +1,60 @@
 import { Route, Routes } from 'react-router-dom'
 import { Layout } from './components/Layout'
+import { useAppState } from './hooks/useAppState'
 import { CatalogBrowser } from './pages/CatalogBrowser'
 import { CustomDetail } from './pages/CustomDetail'
 import { Home } from './pages/Home'
+import { Settings } from './pages/Settings'
+import { Welcome } from './pages/Welcome'
 
 export function App() {
+  const { state, refetch } = useAppState()
+
+  if (state.status === 'loading' || state.status === 'idle') {
+    return (
+      <Layout>
+        <main className="page">
+          <p className="muted">Loading…</p>
+        </main>
+      </Layout>
+    )
+  }
+
+  if (state.status === 'error') {
+    return (
+      <Layout>
+        <main className="page">
+          <section className="error-panel">
+            <h1>Could not reach the server</h1>
+            <p>{state.error.message}</p>
+            <button className="button" onClick={refetch}>
+              Retry
+            </button>
+          </section>
+        </main>
+      </Layout>
+    )
+  }
+
+  if (!state.data.initialized) {
+    return (
+      <Layout>
+        <Welcome
+          catalogPath={state.data.catalogPath}
+          userConfigDir={state.data.userConfigDir}
+          onInitialized={refetch}
+        />
+      </Layout>
+    )
+  }
+
   return (
     <Layout>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/catalog" element={<CatalogBrowser />} />
         <Route path="/catalog/:type/:id" element={<CustomDetail />} />
+        <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Layout>

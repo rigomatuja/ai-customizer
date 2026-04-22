@@ -19,6 +19,9 @@ export function Layout({ children }: LayoutProps) {
           <li>
             <NavLink to="/catalog">Catalog</NavLink>
           </li>
+          <li className="app-nav-right">
+            <NavLink to="/settings">Settings</NavLink>
+          </li>
         </ul>
       </nav>
       <div className="app-content">{children}</div>

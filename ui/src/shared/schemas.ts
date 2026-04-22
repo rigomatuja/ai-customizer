@@ -133,3 +133,38 @@ export const ApplicationGuideSchema = z.object({
   }),
 })
 export type ApplicationGuide = z.infer<typeof ApplicationGuideSchema>
+
+export const ToolsOverrideSchema = z.object({
+  claude: z.boolean().optional(),
+  opencode: z.boolean().optional(),
+})
+export type ToolsOverride = z.infer<typeof ToolsOverrideSchema>
+
+export const UserConfigSchema = z.object({
+  schemaVersion: z.literal('1.0'),
+  catalogPath: z.string().min(1),
+  toolsOverride: ToolsOverrideSchema.optional(),
+  createdAt: z.string().min(1),
+  updatedAt: z.string().min(1),
+})
+export type UserConfig = z.infer<typeof UserConfigSchema>
+
+export const ProjectEntrySchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  path: z.string().min(1),
+  repoUrl: z.string().url().optional(),
+})
+export type ProjectEntry = z.infer<typeof ProjectEntrySchema>
+
+export const ProjectsFileSchema = z.object({
+  schemaVersion: z.literal('1.0'),
+  projects: z.array(ProjectEntrySchema),
+})
+export type ProjectsFile = z.infer<typeof ProjectsFileSchema>
+
+export const ProjectCreateInputSchema = ProjectEntrySchema.omit({ id: true })
+export type ProjectCreateInput = z.infer<typeof ProjectCreateInputSchema>
+
+export const ProjectUpdateInputSchema = ProjectCreateInputSchema.partial()
+export type ProjectUpdateInput = z.infer<typeof ProjectUpdateInputSchema>

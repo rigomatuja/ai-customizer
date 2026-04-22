@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 export type AsyncState<T> =
   | { status: 'idle' }
@@ -6,26 +6,39 @@ export type AsyncState<T> =
   | { status: 'success'; data: T }
   | { status: 'error'; error: Error }
 
-export function useAsync<T>(fn: () => Promise<T>, deps: unknown[]): AsyncState<T> {
+export interface AsyncResult<T> {
+  state: AsyncState<T>
+  refetch: () => void
+}
+
+export function useAsyncWithRefetch<T>(fn: () => Promise<T>, deps: unknown[]): AsyncResult<T> {
   const [state, setState] = useState<AsyncState<T>>({ status: 'idle' })
+  const [tick, setTick] = useState(0)
+  const cancelRef = useRef<boolean>(false)
+
+  const refetch = useCallback(() => setTick((x) => x + 1), [])
 
   useEffect(() => {
-    let cancelled = false
+    cancelRef.current = false
     setState({ status: 'loading' })
     fn()
       .then((data) => {
-        if (!cancelled) setState({ status: 'success', data })
+        if (!cancelRef.current) setState({ status: 'success', data })
       })
       .catch((err: unknown) => {
-        if (cancelled) return
+        if (cancelRef.current) return
         const error = err instanceof Error ? err : new Error(String(err))
         setState({ status: 'error', error })
       })
     return () => {
-      cancelled = true
+      cancelRef.current = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps)
+  }, [...deps, tick])
 
-  return state
+  return { state, refetch }
+}
+
+export function useAsync<T>(fn: () => Promise<T>, deps: unknown[]): AsyncState<T> {
+  return useAsyncWithRefetch(fn, deps).state
 }
