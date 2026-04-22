@@ -5,8 +5,10 @@ import {
   computeOrphans,
   forceUninstallOrphan,
   forceUninstallPatchOrphan,
+  PatchOrphanRestoreError,
 } from '../installer/orphans'
 import { readTracker } from '../state/tracker'
+import { apiError } from './_errors'
 
 export const orphansRoutes = new Hono()
 
@@ -31,9 +33,24 @@ orphansRoutes.delete('/:customType/:customId', async (c) => {
 orphansRoutes.delete('/patch/:target', async (c) => {
   const target = c.req.param('target')
   if (target !== 'CLAUDE.md' && target !== 'AGENTS.md') {
-    return c.json({ error: `invalid target: ${target}`, code: 'bad-request' }, 400)
+    return c.json(apiError(`invalid target: ${target}`, 'bad-request'), 400)
   }
-  const result = await forceUninstallPatchOrphan(target)
-  if (result.notFound) return c.json({ error: 'no patch tracker entry', code: 'not-found' }, 404)
-  return c.json(result)
+  const force = c.req.query('force') === '1' || c.req.query('force') === 'true'
+  try {
+    const result = await forceUninstallPatchOrphan(target, { force })
+    if (result.notFound) return c.json(apiError('no patch tracker entry', 'not-found'), 404)
+    return c.json(result)
+  } catch (err) {
+    if (err instanceof PatchOrphanRestoreError) {
+      return c.json(
+        apiError(err.message, 'restore-impossible', {
+          target: err.target,
+          masterPath: err.masterPath,
+          originalBackup: err.originalBackup,
+        }),
+        409,
+      )
+    }
+    throw err
+  }
 })

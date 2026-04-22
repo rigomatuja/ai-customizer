@@ -110,6 +110,18 @@ async function loadCustom(
     const versionDirs = availableVersionDirs.filter((n) => /^v\d+\.\d+\.\d+(-[a-z0-9.]+)?$/.test(n))
     versionCount = versionDirs.length
 
+    // activeVersion must be declared in the versions[] array. Zod
+    // doesn't cross-validate these fields, so we check it here.
+    const activeInList = manifest.versions.some((v) => v.version === manifest.activeVersion)
+    if (!activeInList) {
+      issues.push({
+        level: 'error',
+        code: 'active-version-not-in-versions',
+        message: `activeVersion "${manifest.activeVersion}" is not listed in the versions[] array of the manifest`,
+        path: manifestPath,
+      })
+    }
+
     const activeDir = path.join(customDir, `v${manifest.activeVersion}`)
     if (!existsSync(activeDir)) {
       issues.push({

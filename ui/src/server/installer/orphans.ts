@@ -160,22 +160,51 @@ export async function forceUninstallOrphan(
   return { deletedPaths, failedPaths, removedGuideEntries, notFound: false }
 }
 
+export class PatchOrphanRestoreError extends Error {
+  constructor(
+    public target: 'CLAUDE.md' | 'AGENTS.md',
+    public masterPath: string,
+    public originalBackup: string,
+    message: string,
+  ) {
+    super(message)
+    this.name = 'PatchOrphanRestoreError'
+  }
+}
+
 /**
  * Force-uninstall a patch that is no longer in the catalog. Restores
  * the master from `.original` (if present), removes the tracker.patches
  * entry, and drops any matching guide entries.
+ *
+ * If `.original` is missing, we REFUSE to clear the tracker entry and
+ * throw — silently dropping the entry would leave the master file in
+ * a patched state with no baseline to restore from, and future patch
+ * installs would snapshot the CORRUPTED master as their new baseline.
+ * The caller can pass { force: true } to override and accept the risk.
  */
 export async function forceUninstallPatchOrphan(
   target: 'CLAUDE.md' | 'AGENTS.md',
+  options: { force?: boolean } = {},
 ): Promise<{ restored: boolean; removedGuideEntries: number; notFound: boolean }> {
   const catalogPath = getCatalogPath()
   const tracker = await readTracker(catalogPath)
   const entry = tracker.patches.find((p) => p.target === target)
   if (!entry) return { restored: false, removedGuideEntries: 0, notFound: true }
 
+  const originalExists = existsSync(entry.originalBackup)
+  if (!originalExists && !options.force) {
+    throw new PatchOrphanRestoreError(
+      target,
+      entry.masterPath,
+      entry.originalBackup,
+      `Cannot restore ${target}: ${entry.originalBackup} is missing. Master at ${entry.masterPath} may still contain patched content. Restore from a tar.gz backup first, or pass force=true to clear the tracker entry anyway (accepts the risk of a corrupted baseline).`,
+    )
+  }
+
   // Restore master from .original if present.
   let restored = false
-  if (existsSync(entry.originalBackup)) {
+  if (originalExists) {
     const fs = await import('node:fs/promises')
     await fs.copyFile(entry.originalBackup, entry.masterPath)
     restored = true

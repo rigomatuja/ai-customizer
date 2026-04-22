@@ -81,41 +81,78 @@ export async function installManager(tools: Tool[]): Promise<InstallManagerResul
 
   const installed: InstallManagerResult['installed'] = []
   const skipped: InstallManagerResult['skipped'] = []
-
   const now = new Date().toISOString()
-  const tracker = await readTracker(catalogPath)
 
-  // Drop any existing manager tracker entries to replace.
+  // Capture any existing manager install on disk BEFORE we touch
+  // anything — used for rollback if a later copy fails.
+  const previousSnapshot = new Map<string, string>() // dst path → original content
+  for (const tool of tools) {
+    const dst = managerDest(tool)
+    if (existsSync(dst)) {
+      const fs = await import('node:fs/promises')
+      previousSnapshot.set(dst, await fs.readFile(dst, 'utf8'))
+    }
+  }
+
+  const stagedOps: TrackerOp[] = []
+  const copiedPaths: string[] = []
+
+  try {
+    for (const tool of tools) {
+      const src = managerSource(catalogPath, version, tool)
+      if (!existsSync(src)) {
+        skipped.push({ tool, reason: `source file not found: ${src}` })
+        continue
+      }
+      const dst = managerDest(tool)
+      await copyFile(src, dst)
+      copiedPaths.push(dst)
+
+      stagedOps.push({
+        opId: randomUUID(),
+        type: 'copy',
+        customId: 'manager',
+        customType: 'agent',
+        version,
+        tool,
+        target: { scope: 'global' },
+        toPath: dst,
+        fromPath: src,
+        contentHash: await hashFile(dst),
+        installedAt: now,
+      })
+      installed.push({ tool, path: dst, version })
+    }
+  } catch (err) {
+    // Rollback: restore any previous content, delete files that didn't
+    // exist before, and rethrow. Tracker is untouched.
+    const fsp = await import('node:fs/promises')
+    for (const p of copiedPaths) {
+      const prev = previousSnapshot.get(p)
+      try {
+        if (prev !== undefined) {
+          await fsp.writeFile(p, prev, 'utf8')
+        } else if (existsSync(p)) {
+          await fsp.unlink(p)
+        }
+      } catch (rollbackErr) {
+        console.error(
+          `[ai-customizer] manager install rollback failed at ${p}: ${rollbackErr instanceof Error ? rollbackErr.message : rollbackErr}`,
+        )
+      }
+    }
+    console.error(
+      `[ai-customizer] manager install failed (rollback attempted): ${err instanceof Error ? err.message : err}`,
+    )
+    throw err
+  }
+
+  // All copies succeeded — commit tracker in a single atomic write.
+  const tracker = await readTracker(catalogPath)
   tracker.operations = tracker.operations.filter(
     (o) => !(o.customType === 'agent' && o.customId === 'manager'),
   )
-
-  for (const tool of tools) {
-    const src = managerSource(catalogPath, version, tool)
-    if (!existsSync(src)) {
-      skipped.push({ tool, reason: `source file not found: ${src}` })
-      continue
-    }
-    const dst = managerDest(tool)
-    await copyFile(src, dst)
-
-    const trackerOp: TrackerOp = {
-      opId: randomUUID(),
-      type: 'copy',
-      customId: 'manager',
-      customType: 'agent',
-      version,
-      tool,
-      target: { scope: 'global' },
-      toPath: dst,
-      fromPath: src,
-      contentHash: await hashFile(dst),
-      installedAt: now,
-    }
-    tracker.operations.push(trackerOp)
-    installed.push({ tool, path: dst, version })
-  }
-
+  tracker.operations.push(...stagedOps)
   tracker.catalogPath = catalogPath
   tracker.lastApply = now
   await writeTracker(tracker)
