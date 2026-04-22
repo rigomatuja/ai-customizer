@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0",
+  "triggers": [
+    "phase:sdd-pipeline:pre-explore",
+    "phase:sdd-pipeline:post-explore",
+    "phase:sdd-pipeline:post-propose",
+    "phase:sdd-pipeline:post-spec",
+    "phase:sdd-pipeline:post-design",
+    "phase:sdd-pipeline:post-tasks",
+    "phase:sdd-pipeline:post-apply",
+    "phase:sdd-pipeline:post-verify",
+    "phase:sdd-pipeline:post-archive",
+    "agent-event:*:start",
+    "agent-event:*:complete",
+    "agent-event:*:fail",
+    "procedure:pre-pr-creation",
+    "procedure:pre-issue-creation",
+    "procedure:pre-commit"
+  ]
+}
