@@ -20,6 +20,9 @@ export function Layout({ children }: LayoutProps) {
             <NavLink to="/catalog">Catalog</NavLink>
           </li>
           <li>
+            <NavLink to="/application-guide">Guide</NavLink>
+          </li>
+          <li>
             <NavLink to="/apply">Apply</NavLink>
           </li>
           <li>

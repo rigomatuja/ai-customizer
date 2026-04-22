@@ -1,16 +1,26 @@
 import type {
+  ApplicationGuide,
   InstallableType,
   InstallationEntry,
   Manifest,
+  PatchMasterName,
   ProjectEntry,
   TargetScope,
   Tool,
   TrackerFile,
   TrackerOp,
 } from '../../shared/schemas'
-import type { PhysicalOp, Plan, PlanBlocker, PlanOperation, PlanWarning } from '../../shared/types'
+import type {
+  PhysicalOp,
+  Plan,
+  PlanBlocker,
+  PlanOperation,
+  PlanPatchOp,
+  PlanWarning,
+} from '../../shared/types'
 import type { LoadedCatalog } from '../catalog/loader'
 import { resolveInstallPath } from './paths'
+import { activeEntriesFor, activeGuideHashFor, globalMasterPath } from './patches'
 
 interface PlannerInput {
   catalogPath: string
@@ -18,6 +28,7 @@ interface PlannerInput {
   installations: InstallationEntry[]
   tracker: TrackerFile
   projects: ProjectEntry[]
+  guide: ApplicationGuide
 }
 
 function manifestById(
@@ -125,8 +136,9 @@ function trackerInstallsFor(tracker: TrackerFile) {
 }
 
 export function computePlan(input: PlannerInput): Plan {
-  const { catalogPath, catalog, installations, tracker, projects } = input
+  const { catalogPath, catalog, installations, tracker, projects, guide } = input
   const operations: PlanOperation[] = []
+  const patchOperations: PlanPatchOp[] = []
   const warnings: PlanWarning[] = []
   const blockers: PlanBlocker[] = []
 
@@ -253,11 +265,58 @@ export function computePlan(input: PlannerInput): Plan {
     }
   }
 
+  // Patch operations per master
+  for (const target of ['CLAUDE.md', 'AGENTS.md'] as PatchMasterName[]) {
+    const active = activeEntriesFor(guide, target)
+    const wantHash = activeGuideHashFor(active)
+    const trackerEntry = tracker.patches.find((p) => p.target === target)
+    const currentHash = trackerEntry?.activeGuideHash ?? null
+
+    // Validate referenced patches exist in catalog
+    const missingPatchIds: string[] = []
+    for (const entry of active) {
+      const summary = catalog.customs.find(
+        (c) => c.type === 'patch' && c.id === entry.patchId,
+      )
+      if (!summary) {
+        missingPatchIds.push(entry.patchId)
+      }
+    }
+    for (const mid of missingPatchIds) {
+      blockers.push({
+        code: 'patch-missing',
+        message: `application-guide references patch "${mid}" but it is not in the catalog`,
+        customId: mid,
+      })
+    }
+
+    // Skip when both sides already match:
+    // - No active entries AND no tracker record → never applied, nothing to do.
+    // - Same activeGuideHash as last recorded → already applied.
+    if (active.length === 0 && trackerEntry === undefined) continue
+    if (wantHash === currentHash) continue
+
+    const willRestoreOriginal = active.length === 0 && trackerEntry !== undefined
+
+    patchOperations.push({
+      target,
+      masterPath: globalMasterPath(target),
+      currentHash,
+      entries: active.map((e) => ({
+        patchId: e.patchId,
+        version: e.version,
+        order: e.order,
+      })),
+      willRestoreOriginal,
+    })
+  }
+
   return {
     operations,
+    patchOperations,
     warnings,
     blockers,
-    backupWillBeCreated: operations.length > 0,
+    backupWillBeCreated: operations.length > 0 || patchOperations.length > 0,
     currentInstalledCount: installed.size,
   }
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { api, ApiClientError } from '../api/client'
 import { usePlan } from '../hooks/useInstall'
-import type { ApplyResponse, Plan, PlanOperation } from '../../shared/types'
+import type { ApplyResponse, Plan, PlanOperation, PlanPatchOp } from '../../shared/types'
 
 export function Apply() {
   const { state, refetch } = usePlan()
@@ -76,23 +76,38 @@ export function Apply() {
             </section>
           ) : null}
 
-          {state.data.operations.length === 0 ? (
+          {state.data.operations.length === 0 && state.data.patchOperations.length === 0 ? (
             <div className="empty-state">
               <h3>Nothing to apply</h3>
               <p className="muted">Your filesystem matches the desired state.</p>
             </div>
           ) : (
             <>
-              <section className="panel">
-                <h2>Operations ({state.data.operations.length})</h2>
-                <ul className="plan-ops">
-                  {state.data.operations.map((op, i) => (
-                    <li key={i}>
-                      <OperationRow op={op} />
-                    </li>
-                  ))}
-                </ul>
-              </section>
+              {state.data.operations.length > 0 ? (
+                <section className="panel">
+                  <h2>Skill / agent operations ({state.data.operations.length})</h2>
+                  <ul className="plan-ops">
+                    {state.data.operations.map((op, i) => (
+                      <li key={i}>
+                        <OperationRow op={op} />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+
+              {state.data.patchOperations.length > 0 ? (
+                <section className="panel">
+                  <h2>Patch operations ({state.data.patchOperations.length})</h2>
+                  <ul className="plan-ops">
+                    {state.data.patchOperations.map((pop, i) => (
+                      <li key={i}>
+                        <PatchOpRow op={pop} />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
 
               {applyError ? <p className="error">{applyError}</p> : null}
               <div className="row">
@@ -123,6 +138,7 @@ function PlanSummary({ plan }: { plan: Plan }) {
     install: plan.operations.filter((o) => o.kind === 'install').length,
     upgrade: plan.operations.filter((o) => o.kind === 'upgrade').length,
     uninstall: plan.operations.filter((o) => o.kind === 'uninstall').length,
+    patches: plan.patchOperations.length,
   }
   return (
     <section className="counts-grid">
@@ -139,10 +155,43 @@ function PlanSummary({ plan }: { plan: Plan }) {
         <div className="count-label">Uninstall</div>
       </div>
       <div className="count-card">
+        <div className="count-value">{counts.patches}</div>
+        <div className="count-label">Patches</div>
+      </div>
+      <div className="count-card">
         <div className="count-value">{plan.currentInstalledCount}</div>
         <div className="count-label">Currently installed</div>
       </div>
     </section>
+  )
+}
+
+function PatchOpRow({ op }: { op: PlanPatchOp }) {
+  return (
+    <div className="plan-op">
+      <div className="plan-op-head">
+        <span className={`badge badge-${op.willRestoreOriginal ? 'warn' : 'ok'}`}>
+          {op.willRestoreOriginal ? 'restore-original' : 'apply-patches'}
+        </span>
+        <code>{op.target}</code>
+        <span className="muted small">→ {op.masterPath}</span>
+      </div>
+      {op.entries.length > 0 ? (
+        <ul className="plan-physicals">
+          {op.entries.map((e, i) => (
+            <li key={i}>
+              <code className="small">
+                #{e.order + 1} {e.patchId} @ v{e.version}
+              </code>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="muted small" style={{ marginTop: '0.35rem' }}>
+          No active entries — master will be restored from <code>.original</code>.
+        </p>
+      )}
+    </div>
   )
 }
 
@@ -203,6 +252,8 @@ function ApplyResultPanel({ result }: { result: ApplyResponse }) {
         <dd>{result.upgradeCount}</dd>
         <dt>Uninstalls</dt>
         <dd>{result.uninstallCount}</dd>
+        <dt>Patches</dt>
+        <dd>{result.patchCount}</dd>
         {result.backupPath ? (
           <>
             <dt>Backup</dt>

@@ -23,7 +23,8 @@ export function InstallControls({ customId, customType, supportedTools }: Instal
       <section className="panel">
         <h2>Install</h2>
         <p className="muted">
-          Patches are managed from the Application Guide (coming in M6).
+          Patches are managed from the <Link to="/application-guide">Application Guide</Link>.
+          Order + activation + version per master file lives there.
         </p>
       </section>
     )

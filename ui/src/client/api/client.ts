@@ -104,4 +104,23 @@ export const api = {
   apply: () => jsonPost<ApplyResponse>('/api/apply', {}),
   history: () => request<HistoryResponse>('/api/apply/history'),
   tracker: () => request<TrackerResponse>('/api/apply/tracker'),
+
+  guide: () => request<{ guide: import('../../shared/schemas').ApplicationGuide }>('/api/guide'),
+  upsertGuideEntry: (
+    target: 'CLAUDE.md' | 'AGENTS.md',
+    entry: import('../../shared/schemas').GuideEntry,
+  ) =>
+    jsonPost<{ guide: import('../../shared/schemas').ApplicationGuide }>(
+      `/api/guide/${encodeURIComponent(target)}/entries`,
+      entry,
+    ),
+  removeGuideEntry: (target: 'CLAUDE.md' | 'AGENTS.md', patchId: string) =>
+    jsonDelete<{ guide: import('../../shared/schemas').ApplicationGuide }>(
+      `/api/guide/${encodeURIComponent(target)}/entries/${encodeURIComponent(patchId)}`,
+    ),
+  reorderGuide: (target: 'CLAUDE.md' | 'AGENTS.md', patchIds: string[]) =>
+    jsonPost<{ guide: import('../../shared/schemas').ApplicationGuide }>(
+      `/api/guide/${encodeURIComponent(target)}/reorder`,
+      { patchIds },
+    ),
 }

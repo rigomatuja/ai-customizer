@@ -14,6 +14,7 @@ function emptyTracker(catalogPath: string): TrackerFile {
     catalogPath,
     lastApply: null,
     operations: [],
+    patches: [],
   }
 }
 
@@ -22,7 +23,8 @@ export async function readTracker(catalogPath: string): Promise<TrackerFile> {
   if (!existsSync(p.installState)) return emptyTracker(catalogPath)
   try {
     const raw = await fs.readFile(p.installState, 'utf8')
-    const parsed = JSON.parse(raw) as unknown
+    const parsed = JSON.parse(raw) as { patches?: unknown } & Record<string, unknown>
+    if (!Array.isArray(parsed.patches)) parsed.patches = []
     const result = TrackerFileSchema.safeParse(parsed)
     return result.success ? result.data : emptyTracker(catalogPath)
   } catch {

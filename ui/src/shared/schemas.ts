@@ -211,11 +211,26 @@ export const TrackerOpSchema = z.object({
 })
 export type TrackerOp = z.infer<typeof TrackerOpSchema>
 
+export const PatchMasterName = z.enum(['CLAUDE.md', 'AGENTS.md'])
+export type PatchMasterName = z.infer<typeof PatchMasterName>
+
+export const PatchTrackerOpSchema = z.object({
+  opId: z.string().min(1),
+  target: PatchMasterName,
+  masterPath: z.string().min(1),
+  originalBackup: z.string().min(1),
+  activeGuideHash: z.string().min(1),
+  appliedContentHash: z.string().min(1),
+  installedAt: z.string().min(1),
+})
+export type PatchTrackerOp = z.infer<typeof PatchTrackerOpSchema>
+
 export const TrackerFileSchema = z.object({
   schemaVersion: z.literal('1.0'),
   catalogPath: z.string().min(1),
   lastApply: z.string().nullable(),
   operations: z.array(TrackerOpSchema),
+  patches: z.array(PatchTrackerOpSchema),
 })
 export type TrackerFile = z.infer<typeof TrackerFileSchema>
 
@@ -229,6 +244,7 @@ export const HistoryEntrySchema = z.object({
   installCount: z.number().int().nonnegative(),
   upgradeCount: z.number().int().nonnegative(),
   uninstallCount: z.number().int().nonnegative(),
+  patchCount: z.number().int().nonnegative().optional(),
   backupPath: z.string().nullable(),
   error: z.string().nullable(),
   durationMs: z.number().nonnegative(),

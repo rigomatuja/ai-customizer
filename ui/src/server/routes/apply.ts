@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import type { TrackerResponse } from '../../shared/types'
+import { readGuide } from '../catalog/guide'
 import { loadCatalog } from '../catalog/loader'
 import { getCatalogPath } from '../catalog/paths'
 import { listBackups } from '../installer/backup'
@@ -14,13 +15,14 @@ export const applyRoutes = new Hono()
 
 async function buildContext() {
   const catalogPath = getCatalogPath()
-  const [catalog, installations, tracker, projects] = await Promise.all([
+  const [catalog, installations, tracker, projects, guide] = await Promise.all([
     loadCatalog(catalogPath),
     listInstallations(),
     readTracker(catalogPath),
     listProjects(),
+    readGuide(catalogPath),
   ])
-  return { catalogPath, catalog, installations, tracker, projects }
+  return { catalogPath, catalog, installations, tracker, projects, guide }
 }
 
 applyRoutes.get('/plan', async (c) => {
@@ -31,6 +33,7 @@ applyRoutes.get('/plan', async (c) => {
     installations: ctx.installations,
     tracker: ctx.tracker,
     projects: ctx.projects,
+    guide: ctx.guide,
   })
   return c.json(plan)
 })
@@ -43,9 +46,15 @@ applyRoutes.post('/', async (c) => {
     installations: ctx.installations,
     tracker: ctx.tracker,
     projects: ctx.projects,
+    guide: ctx.guide,
   })
   const projectPaths = ctx.projects.map((p) => p.path)
-  const response = await executePlan({ plan, catalogPath: ctx.catalogPath, projectPaths })
+  const response = await executePlan({
+    plan,
+    catalogPath: ctx.catalogPath,
+    projectPaths,
+    guide: ctx.guide,
+  })
   return c.json(response)
 })
 

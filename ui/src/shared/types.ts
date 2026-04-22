@@ -150,8 +150,23 @@ export interface PlanBlocker {
   customId?: string
 }
 
+export interface PlanPatchEntry {
+  patchId: string
+  version: string
+  order: number
+}
+
+export interface PlanPatchOp {
+  target: 'CLAUDE.md' | 'AGENTS.md'
+  masterPath: string
+  currentHash: string | null
+  entries: PlanPatchEntry[]
+  willRestoreOriginal: boolean
+}
+
 export interface Plan {
   operations: PlanOperation[]
+  patchOperations: PlanPatchOp[]
   warnings: PlanWarning[]
   blockers: PlanBlocker[]
   backupWillBeCreated: boolean
@@ -167,6 +182,7 @@ export interface ApplyResponse {
   installCount: number
   upgradeCount: number
   uninstallCount: number
+  patchCount: number
 }
 
 export interface TrackerResponse {

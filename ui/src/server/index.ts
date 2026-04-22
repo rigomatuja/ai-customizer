@@ -4,6 +4,7 @@ import { getCatalogPath } from './catalog/paths'
 import { applyRoutes } from './routes/apply'
 import { catalogRoutes } from './routes/catalog'
 import { customsRoutes } from './routes/customs'
+import { guideRoutes } from './routes/guide'
 import { installationsRoutes } from './routes/installations'
 import { stateRoutes } from './routes/state'
 import { toolsRoutes } from './routes/tools'
@@ -16,8 +17,8 @@ app.get('/api/health', (c) =>
   c.json({
     ok: true,
     service: 'ai-customizer',
-    version: '0.5.0',
-    milestone: 'M5',
+    version: '0.6.0',
+    milestone: 'M6',
   }),
 )
 
@@ -27,6 +28,7 @@ app.route('/api/state', stateRoutes)
 app.route('/api/tools', toolsRoutes)
 app.route('/api/installations', installationsRoutes)
 app.route('/api/apply', applyRoutes)
+app.route('/api/guide', guideRoutes)
 
 const port = Number(process.env.PORT) || 3000
 const hostname = '127.0.0.1'
