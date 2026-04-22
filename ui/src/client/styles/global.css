@@ -944,6 +944,27 @@ button:disabled {
   border-radius: 4px;
 }
 
+/* Orphans */
+.orphans-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.orphans-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 107, 107, 0.08);
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+  gap: 0.5rem;
+}
+
 /* Triggers / Hook registry */
 .triggers-vocab-list {
   list-style: none;

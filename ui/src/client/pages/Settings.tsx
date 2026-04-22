@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { api, ApiClientError } from '../api/client'
 import type { Tool } from '../../shared/schemas'
 import type { AppStateResponse, ProjectsResponse, ToolDetection } from '../../shared/types'
-import type { AsyncState } from '../hooks/useAsync'
+import { useAsyncWithRefetch, type AsyncState } from '../hooks/useAsync'
 import { useAppState, useProjects, useTools } from '../hooks/useAppState'
 
 export function Settings() {
@@ -18,9 +18,214 @@ export function Settings() {
       </header>
 
       <CatalogPathPanel state={stateResult} />
+      <ManagerPanel />
       <ToolsPanel tools={toolsState} state={stateResult} onSaved={refetchState} />
       <ProjectsPanel projects={projectsResult} onChanged={refetchProjects} />
+      <OrphansPanel />
     </main>
+  )
+}
+
+function ManagerPanel() {
+  const { state, refetch } = useAsyncWithRefetch(() => api.managerStatus(), [])
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  if (state.status !== 'success') {
+    return (
+      <section className="panel">
+        <h2>Manager agent</h2>
+        {state.status === 'loading' ? <p className="muted">Loading…</p> : null}
+        {state.status === 'error' ? <p className="error">{state.error.message}</p> : null}
+      </section>
+    )
+  }
+
+  const status = state.data
+  const installedTools: Tool[] = (['claude', 'opencode'] as Tool[]).filter(
+    (t) => status.installed[t].installed,
+  )
+  const notInstalledTools: Tool[] = (['claude', 'opencode'] as Tool[]).filter(
+    (t) => !status.installed[t].installed,
+  )
+
+  const handleInstall = async (tools: Tool[]) => {
+    setBusy(true)
+    setErr(null)
+    try {
+      await api.installManager(tools)
+      refetch()
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleUninstall = async () => {
+    if (!confirm('Uninstall the manager from all tools?')) return
+    setBusy(true)
+    setErr(null)
+    try {
+      await api.uninstallManager()
+      refetch()
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="panel">
+      <h2>Manager agent</h2>
+      {!status.present ? (
+        <p className="error">
+          Manager is not present in the catalog (looked for <code>manager/manifest.json</code>). Your catalog
+          may be incomplete.
+        </p>
+      ) : (
+        <>
+          <dl className="kv compact">
+            <dt>Catalog version</dt>
+            <dd>v{status.catalogVersion ?? '?'}</dd>
+            {(['claude', 'opencode'] as Tool[]).map((t) => (
+              <FragmentLine
+                key={t}
+                label={t}
+                info={status.installed[t]}
+                catalogVersion={status.catalogVersion}
+              />
+            ))}
+          </dl>
+          {err ? <p className="error">{err}</p> : null}
+          <div className="row">
+            {notInstalledTools.length > 0 ? (
+              <button
+                className="button"
+                onClick={() => handleInstall(notInstalledTools)}
+                disabled={busy}
+              >
+                Install on {notInstalledTools.join(', ')}
+              </button>
+            ) : null}
+            {installedTools.length > 0 ? (
+              <button
+                className="button button-secondary"
+                onClick={() => handleInstall(installedTools)}
+                disabled={busy}
+              >
+                Reinstall on {installedTools.join(', ')}
+              </button>
+            ) : null}
+            {installedTools.length > 0 ? (
+              <button className="button button-danger" onClick={handleUninstall} disabled={busy}>
+                Uninstall
+              </button>
+            ) : null}
+          </div>
+        </>
+      )}
+    </section>
+  )
+}
+
+function FragmentLine({
+  label,
+  info,
+  catalogVersion,
+}: {
+  label: string
+  info: { installed: boolean; path: string; version: string | null }
+  catalogVersion: string | null
+}) {
+  const outOfDate =
+    info.installed && info.version && catalogVersion && info.version !== catalogVersion
+  return (
+    <>
+      <dt>{label}</dt>
+      <dd>
+        {info.installed ? (
+          <>
+            <span className={`badge badge-${outOfDate ? 'warn' : 'ok'}`}>
+              v{info.version ?? '?'}
+              {outOfDate ? ` (catalog has v${catalogVersion})` : ''}
+            </span>{' '}
+            <code className="small">{info.path}</code>
+          </>
+        ) : (
+          <span className="muted">not installed — <code className="small">{info.path}</code></span>
+        )}
+      </dd>
+    </>
+  )
+}
+
+function OrphansPanel() {
+  const { state, refetch } = useAsyncWithRefetch(() => api.orphans(), [])
+  const [busy, setBusy] = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+
+  const handleForceUninstall = async (customType: 'skill' | 'agent', customId: string) => {
+    if (!confirm(`Force-uninstall ${customType}:${customId}? This removes the installed files.`)) return
+    setBusy(`${customType}:${customId}`)
+    setErr(null)
+    try {
+      await api.forceUninstallOrphan(customType, customId)
+      refetch()
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <section className="panel">
+      <h2>Orphans</h2>
+      <p className="muted small">
+        Customs recorded in the tracker but no longer present in the catalog (deleted, renamed, or
+        reset after install).
+      </p>
+      {state.status === 'loading' ? <p className="muted">Loading…</p> : null}
+      {state.status === 'error' ? <p className="error">{state.error.message}</p> : null}
+      {state.status === 'success' ? (
+        state.data.orphans.length === 0 ? (
+          <p className="muted">No orphans — tracker matches catalog.</p>
+        ) : (
+          <>
+            {err ? <p className="error">{err}</p> : null}
+            <ul className="orphans-list">
+              {state.data.orphans.map((o) => {
+                const key = `${o.customType}:${o.customId}`
+                return (
+                  <li key={`${key}-${o.tool}`} className="orphans-item">
+                    <div>
+                      <strong>
+                        {o.customType}:{o.customId}
+                      </strong>{' '}
+                      <span className="muted small">
+                        v{o.version} · tool: {o.tool}
+                      </span>
+                      <div className="muted small">
+                        <code>{o.installedPath}</code>
+                      </div>
+                    </div>
+                    <button
+                      className="button button-danger button-sm"
+                      onClick={() => handleForceUninstall(o.customType, o.customId)}
+                      disabled={busy !== null}
+                    >
+                      {busy === key ? 'Removing…' : 'Force uninstall'}
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </>
+        )
+      ) : null}
+    </section>
   )
 }
 

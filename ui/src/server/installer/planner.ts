@@ -122,6 +122,10 @@ function trackerInstallsFor(tracker: TrackerFile) {
     { customType: InstallableType; customId: string; version: string; target: TargetScope; tools: Tool[] }
   >()
   for (const op of tracker.operations) {
+    // Exclude the manager: it's tracked but lives outside of the
+    // installations.json desired-state model (managed by a dedicated
+    // /api/manager install flow).
+    if (op.customType === 'agent' && op.customId === 'manager') continue
     const key = `${op.customType}:${op.customId}`
     const existing = map.get(key)
     if (existing) {

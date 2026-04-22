@@ -6,6 +6,8 @@ import { catalogRoutes } from './routes/catalog'
 import { customsRoutes } from './routes/customs'
 import { guideRoutes } from './routes/guide'
 import { installationsRoutes } from './routes/installations'
+import { managerRoutes } from './routes/manager'
+import { orphansRoutes } from './routes/orphans'
 import { stateRoutes } from './routes/state'
 import { toolsRoutes } from './routes/tools'
 import { hookRegistryRoutes, triggersRoutes } from './routes/triggers'
@@ -18,8 +20,8 @@ app.get('/api/health', (c) =>
   c.json({
     ok: true,
     service: 'ai-customizer',
-    version: '0.7.0',
-    milestone: 'M7',
+    version: '1.0.0',
+    milestone: 'M8',
   }),
 )
 
@@ -32,6 +34,8 @@ app.route('/api/apply', applyRoutes)
 app.route('/api/guide', guideRoutes)
 app.route('/api/triggers', triggersRoutes)
 app.route('/api/hook-registry', hookRegistryRoutes)
+app.route('/api/manager', managerRoutes)
+app.route('/api/orphans', orphansRoutes)
 
 const port = Number(process.env.PORT) || 3000
 const hostname = '127.0.0.1'

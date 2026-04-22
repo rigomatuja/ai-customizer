@@ -148,4 +148,40 @@ export const api = {
         onFail?: 'halt' | 'warn' | 'continue'
       }>
     }>('/api/hook-registry'),
+
+  managerStatus: () =>
+    request<{
+      present: boolean
+      catalogVersion: string | null
+      installed: Record<
+        'claude' | 'opencode',
+        { installed: boolean; path: string; version: string | null }
+      >
+    }>('/api/manager'),
+  installManager: (tools: Array<'claude' | 'opencode'>) =>
+    jsonPost<{
+      installed: Array<{ tool: 'claude' | 'opencode'; path: string; version: string }>
+      skipped: Array<{ tool: 'claude' | 'opencode'; reason: string }>
+    }>('/api/manager/install', { tools }),
+  uninstallManager: () =>
+    jsonPost<{ removed: Array<{ tool: 'claude' | 'opencode'; path: string }> }>(
+      '/api/manager/uninstall',
+      {},
+    ),
+
+  orphans: () =>
+    request<{
+      orphans: Array<{
+        customId: string
+        customType: 'skill' | 'agent'
+        version: string
+        tool: 'claude' | 'opencode'
+        installedPath: string
+        reason: string
+      }>
+    }>('/api/orphans'),
+  forceUninstallOrphan: (customType: 'skill' | 'agent', customId: string) =>
+    jsonDelete<{ deletedPaths: string[]; notFound: boolean }>(
+      `/api/orphans/${customType}/${encodeURIComponent(customId)}`,
+    ),
 }

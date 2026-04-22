@@ -1,0 +1,16 @@
+{
+  "id": "manager",
+  "name": "AI Customizer Manager",
+  "description": "Creates, improves, versions, and classifies customs in the AI Customizer catalog.",
+  "type": "agent",
+  "category": "system",
+  "scope": "global",
+  "versions": [
+    {
+      "version": "0.1.0",
+      "createdAt": "2026-04-22T00:00:00Z",
+      "changelog": "Initial release — catalog-aware manager for skills, agents, and patches."
+    }
+  ],
+  "activeVersion": "0.1.0"
+}
