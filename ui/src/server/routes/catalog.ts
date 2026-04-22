@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import type { CatalogOverview } from '../../shared/types'
 import { loadCatalog } from '../catalog/loader'
 import { getCatalogPath } from '../catalog/paths'
+import { apiError } from './_errors'
 
 export const catalogRoutes = new Hono()
 
@@ -32,10 +33,7 @@ catalogRoutes.get('/', async (c) => {
     return c.json(overview)
   } catch (err) {
     return c.json(
-      {
-        error: err instanceof Error ? err.message : 'failed to load catalog',
-        code: 'catalog-load-failed',
-      },
+      apiError(err instanceof Error ? err.message : 'failed to load catalog', 'catalog-load-failed'),
       500,
     )
   }

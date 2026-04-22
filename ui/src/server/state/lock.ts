@@ -54,14 +54,34 @@ export async function acquireLock(port: number): Promise<void> {
   }
   await fs.writeFile(p.lock, JSON.stringify(meta, null, 2), 'utf8')
 
-  const cleanup = async () => {
-    await releaseLock().catch(() => undefined)
-    process.exit(0)
+  // Signal handlers must wait for the async release BEFORE calling
+  // process.exit, otherwise the lock file can be left in a
+  // non-cleaned state and the next startup hits a stale lock.
+  let exiting = false
+  const cleanup = async (signal: string) => {
+    if (exiting) return
+    exiting = true
+    try {
+      await releaseLock()
+    } catch {
+      // Best-effort: lock is stale-cleared after 60s by proper-lockfile.
+    }
+    // Re-raise the signal's default handler behavior: exit cleanly.
+    process.exit(signal === 'SIGINT' ? 130 : 143)
   }
 
-  process.once('SIGINT', () => void cleanup())
-  process.once('SIGTERM', () => void cleanup())
-  process.once('beforeExit', () => void releaseLock().catch(() => undefined))
+  process.once('SIGINT', () => {
+    void cleanup('SIGINT')
+  })
+  process.once('SIGTERM', () => {
+    void cleanup('SIGTERM')
+  })
+  // beforeExit is synchronous-only in practice; best we can do is
+  // fire the cleanup without awaiting. If the user Ctrl+C's this
+  // matters less because SIGINT is already handled above.
+  process.once('beforeExit', () => {
+    void releaseLock().catch(() => undefined)
+  })
 }
 
 export async function releaseLock(): Promise<void> {

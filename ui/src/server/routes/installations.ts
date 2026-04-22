@@ -6,6 +6,7 @@ import {
   removeInstallation,
   upsertInstallation,
 } from '../state/installations'
+import { apiError } from './_errors'
 
 export const installationsRoutes = new Hono()
 
@@ -20,12 +21,12 @@ installationsRoutes.post('/', async (c) => {
   try {
     body = await c.req.json()
   } catch {
-    return c.json({ error: 'invalid JSON body', code: 'bad-request' }, 400)
+    return c.json(apiError('invalid JSON body', 'bad-request'), 400)
   }
   const parsed = InstallationEntrySchema.safeParse(body)
   if (!parsed.success) {
     return c.json(
-      { error: 'invalid installation', code: 'validation-failed', details: parsed.error.issues },
+      apiError('invalid installation', 'validation-failed', parsed.error.issues),
       400,
     )
   }
@@ -37,9 +38,9 @@ installationsRoutes.delete('/:customType/:customId', async (c) => {
   const customType = c.req.param('customType')
   const customId = c.req.param('customId')
   if (customType !== 'skill' && customType !== 'agent') {
-    return c.json({ error: `invalid customType: ${customType}`, code: 'bad-request' }, 400)
+    return c.json(apiError(`invalid customType: ${customType}`, 'bad-request'), 400)
   }
   const ok = await removeInstallation(customType, customId)
-  if (!ok) return c.json({ error: 'installation not found', code: 'not-found' }, 404)
+  if (!ok) return c.json(apiError('installation not found', 'not-found'), 404)
   return c.json({ deleted: true })
 })

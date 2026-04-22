@@ -225,17 +225,18 @@ export const PatchTrackerOpSchema = z.object({
 })
 export type PatchTrackerOp = z.infer<typeof PatchTrackerOpSchema>
 
+export const ApplyResultSchema = z.enum(['success', 'rolled-back', 'rollback-failed'])
+export type ApplyResult = z.infer<typeof ApplyResultSchema>
+
 export const TrackerFileSchema = z.object({
   schemaVersion: z.literal('1.0'),
   catalogPath: z.string().min(1),
   lastApply: z.string().nullable(),
+  lastApplyResult: ApplyResultSchema.nullable().optional(),
   operations: z.array(TrackerOpSchema),
   patches: z.array(PatchTrackerOpSchema),
 })
 export type TrackerFile = z.infer<typeof TrackerFileSchema>
-
-export const ApplyResultSchema = z.enum(['success', 'rolled-back', 'rollback-failed'])
-export type ApplyResult = z.infer<typeof ApplyResultSchema>
 
 export const HistoryEntrySchema = z.object({
   applyId: z.string().min(1),

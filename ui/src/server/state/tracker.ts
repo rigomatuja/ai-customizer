@@ -13,6 +13,7 @@ function emptyTracker(catalogPath: string): TrackerFile {
     schemaVersion: '1.0',
     catalogPath,
     lastApply: null,
+    lastApplyResult: null,
     operations: [],
     patches: [],
   }

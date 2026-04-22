@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { addTrigger, readTriggers, removeTrigger } from '../catalog/triggers'
 import { getCatalogPath } from '../catalog/paths'
 import { readGlobalHookRegistry } from '../installer/hook-registry'
+import { apiError } from './_errors'
 
 export const triggersRoutes = new Hono()
 
@@ -23,12 +24,12 @@ triggersRoutes.post('/', async (c) => {
   try {
     body = await c.req.json()
   } catch {
-    return c.json({ error: 'invalid JSON body', code: 'bad-request' }, 400)
+    return c.json(apiError('invalid JSON body', 'bad-request'), 400)
   }
   const parsed = TriggerBodySchema.safeParse(body)
   if (!parsed.success) {
     return c.json(
-      { error: 'invalid trigger', code: 'validation-failed', details: parsed.error.issues },
+      apiError('invalid trigger', 'validation-failed', parsed.error.issues),
       400,
     )
   }
@@ -40,11 +41,11 @@ triggersRoutes.post('/', async (c) => {
 triggersRoutes.delete('/', async (c) => {
   const trigger = c.req.query('trigger')
   if (!trigger) {
-    return c.json({ error: 'trigger query param required', code: 'bad-request' }, 400)
+    return c.json(apiError('trigger query param required', 'bad-request'), 400)
   }
   const catalogPath = getCatalogPath()
   const result = await removeTrigger(catalogPath, trigger)
-  if (!result) return c.json({ error: 'trigger not found', code: 'not-found' }, 404)
+  if (!result) return c.json(apiError('trigger not found', 'not-found'), 404)
   return c.json(result)
 })
 

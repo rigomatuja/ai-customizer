@@ -17,6 +17,7 @@ import type {
   PlanOperation,
   PlanPatchOp,
 } from '../../shared/types'
+import { log } from '../logging'
 import { appendHistory } from '../state/history'
 import { readTracker, writeTracker } from '../state/tracker'
 import { createBackup, restoreBackup } from './backup'
@@ -97,7 +98,7 @@ export async function executePlan(input: ExecutionInput): Promise<ApplyResponse>
       await regenerateHookRegistries({ catalogRoot: catalogPath, tracker, projects })
     } catch (err) {
       registryError = err instanceof Error ? err.message : String(err)
-      console.error(`[ai-customizer] hook-registry regen failed: ${registryError}`)
+      log.error('hook-registry', 'regen failed (apply was no-op)', { applyId, error: registryError })
     }
     return {
       applyId,
@@ -115,9 +116,13 @@ export async function executePlan(input: ExecutionInput): Promise<ApplyResponse>
   const backup = await createBackup(projectPaths)
   const backupPath = backup?.path ?? null
   if (!backupPath && (plan.operations.length > 0 || plan.patchOperations.length > 0)) {
-    console.warn(
-      '[ai-customizer] Apply proceeding WITHOUT tar.gz backup — no live ~/.claude or ~/.config/opencode or project dirs to snapshot. Atomic rollback still works for copy ops, but delete ops cannot be reversed if they fail.',
-    )
+    log.warn('apply', 'no tar.gz backup — delete ops cannot be reversed if they fail', {
+      applyId,
+      installs: installCount,
+      upgrades: upgradeCount,
+      uninstalls: uninstallCount,
+      patches: patchCount,
+    })
   }
 
   const home = os.homedir()
@@ -200,6 +205,7 @@ export async function executePlan(input: ExecutionInput): Promise<ApplyResponse>
 
     tracker.catalogPath = catalogPath
     tracker.lastApply = new Date().toISOString()
+    tracker.lastApplyResult = 'success'
     await writeTracker(tracker)
 
     let registryError: string | null = null
@@ -207,7 +213,7 @@ export async function executePlan(input: ExecutionInput): Promise<ApplyResponse>
       await regenerateHookRegistries({ catalogRoot: catalogPath, tracker, projects })
     } catch (err) {
       registryError = err instanceof Error ? err.message : String(err)
-      console.error(`[ai-customizer] hook-registry regen failed: ${registryError}`)
+      log.error('hook-registry', 'regen failed', { applyId, error: registryError })
     }
 
     const duration = Date.now() - startedAt
@@ -276,9 +282,30 @@ export async function executePlan(input: ExecutionInput): Promise<ApplyResponse>
     const duration = Date.now() - startedAt
     const errorMsg = err instanceof Error ? err.message : String(err)
     const result = rollbackFailed ? 'rollback-failed' : 'rolled-back'
-    console.error(
-      `[ai-customizer] Apply failed: result=${result} installs=${installCount} upgrades=${upgradeCount} uninstalls=${uninstallCount} patches=${patchCount} duration=${duration}ms error="${errorMsg}"`,
-    )
+    log.error('apply', 'failed', {
+      applyId,
+      result,
+      installs: installCount,
+      upgrades: upgradeCount,
+      uninstalls: uninstallCount,
+      patches: patchCount,
+      durationMs: duration,
+      error: errorMsg,
+    })
+
+    // Stamp the tracker so the state reflects the last apply's outcome
+    // even when it was a rollback. No op/patch changes survive here
+    // (they were reversed) — we only update the result marker + timestamp.
+    try {
+      const trackerAfter = await readTracker(catalogPath)
+      trackerAfter.lastApply = new Date().toISOString()
+      trackerAfter.lastApplyResult = result
+      await writeTracker(trackerAfter)
+    } catch {
+      // If we can't even write the tracker, swallow — history.json
+      // still records the failure.
+    }
+
     await appendHistory({
       applyId,
       timestamp: new Date().toISOString(),

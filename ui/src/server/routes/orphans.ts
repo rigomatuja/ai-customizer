@@ -23,10 +23,10 @@ orphansRoutes.delete('/:customType/:customId', async (c) => {
   const customType = c.req.param('customType')
   const customId = c.req.param('customId')
   if (customType !== 'skill' && customType !== 'agent') {
-    return c.json({ error: `invalid customType: ${customType}`, code: 'bad-request' }, 400)
+    return c.json(apiError(`invalid customType: ${customType}`, 'bad-request'), 400)
   }
   const result = await forceUninstallOrphan({ customType, customId })
-  if (result.notFound) return c.json({ error: 'no tracker entries', code: 'not-found' }, 404)
+  if (result.notFound) return c.json(apiError('no tracker entries', 'not-found'), 404)
   return c.json(result)
 })
 
