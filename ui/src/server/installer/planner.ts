@@ -52,6 +52,77 @@ function summaryFor(
   return catalog.customs.find((c) => c.type === customType && c.id === customId)
 }
 
+/**
+ * Resolve the transitive dependency closure of a custom. Detects:
+ * - missing refs (dep id not in catalog)
+ * - inactive deps (dep not in desired set)
+ * - cycles (A → B → A)
+ *
+ * Only skills/agents have `dependencies.customs`; patches don't.
+ */
+function resolveDepClosure(
+  rootId: string,
+  rootType: InstallableType,
+  manifests: Map<string, Manifest>,
+  catalog: LoadedCatalog,
+  desired: Map<string, InstallationEntry>,
+): Array<{ code: string; message: string }> {
+  const errors: Array<{ code: string; message: string }> = []
+  const visited = new Set<string>()
+  const stack: Array<{ id: string; type: InstallableType; path: string[] }> = [
+    { id: rootId, type: rootType, path: [`${rootType}:${rootId}`] },
+  ]
+
+  while (stack.length > 0) {
+    const node = stack.pop()!
+    const nodeKey = `${node.type}:${node.id}`
+    if (visited.has(nodeKey)) continue
+    visited.add(nodeKey)
+
+    const manifest = manifests.get(nodeKey)
+    if (!manifest || manifest.type === 'patch') continue
+
+    const declared = manifest.dependencies?.customs ?? []
+    for (const dep of declared) {
+      const [depTypeRaw, depIdRaw] = dep.split(':')
+      if (!depTypeRaw || !depIdRaw) continue
+      const depType = depTypeRaw as InstallableType
+
+      // Existence in catalog.
+      const depInCatalog = catalog.customs.some((c) => c.type === depType && c.id === depIdRaw)
+      if (!depInCatalog) {
+        errors.push({
+          code: 'dependency-missing-in-catalog',
+          message: `transitive dependency ${dep} (via ${node.path.join(' → ')}) does not exist in the catalog`,
+        })
+        continue
+      }
+
+      // Active in desired set.
+      if (!desired.has(dep)) {
+        errors.push({
+          code: 'dependency-not-active',
+          message: `${node.path.length === 1 ? 'requires' : `transitively requires (via ${node.path.join(' → ')})`} ${dep} to be active`,
+        })
+      }
+
+      // Cycle detection.
+      const depKey = `${depType}:${depIdRaw}`
+      if (node.path.includes(depKey)) {
+        errors.push({
+          code: 'dependency-cycle',
+          message: `dependency cycle detected: ${[...node.path, depKey].join(' → ')}`,
+        })
+        continue
+      }
+
+      stack.push({ id: depIdRaw, type: depType, path: [...node.path, depKey] })
+    }
+  }
+
+  return errors
+}
+
 function sameTarget(a: TargetScope, b: TargetScope): boolean {
   if (a.scope !== b.scope) return false
   if (a.scope === 'global') return true
@@ -269,19 +340,15 @@ export async function computePlan(input: PlannerInput): Promise<Plan> {
       })
     }
 
-    // Dependencies.customs: if the manifest declares a dep on another
-    // custom, the dep must be in the desired (active) set. Otherwise
-    // we hard-block the Apply.
-    const manifest = manifests.get(`${entry.customType}:${entry.customId}`)
-    const declaredDeps = manifest && manifest.type !== 'patch' ? manifest.dependencies?.customs ?? [] : []
-    for (const dep of declaredDeps) {
-      if (!desired.has(dep)) {
-        blockers.push({
-          code: 'dependency-not-active',
-          message: `${key} requires ${dep} to be active, but it is not. Activate ${dep} first or remove the dependency.`,
-          customId: entry.customId,
-        })
-      }
+    // Dependencies.customs: direct + transitive + existence check +
+    // cycle detection. All violations are blockers.
+    const depErrors = resolveDepClosure(entry.customId, entry.customType, manifests, catalog, desired)
+    for (const err of depErrors) {
+      blockers.push({
+        code: err.code,
+        message: `${key}: ${err.message}`,
+        customId: entry.customId,
+      })
     }
   }
 
