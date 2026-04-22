@@ -1,6 +1,5 @@
 import { existsSync } from 'node:fs'
 import fs from 'node:fs/promises'
-import path from 'node:path'
 import {
   InstallationsFileSchema,
   type InstallationEntry,
@@ -8,6 +7,7 @@ import {
   type InstallableType,
   type TargetScope,
 } from '../../shared/schemas'
+import { writeJsonAtomic } from '../installer/fs-utils'
 import { userConfigPaths } from './paths'
 
 const EMPTY: InstallationsFile = { schemaVersion: '1.0', installations: [] }
@@ -27,8 +27,7 @@ async function readFile(): Promise<InstallationsFile> {
 
 async function writeFile(data: InstallationsFile): Promise<void> {
   const p = userConfigPaths()
-  await fs.mkdir(path.dirname(p.installations), { recursive: true })
-  await fs.writeFile(p.installations, JSON.stringify(data, null, 2) + '\n', 'utf8')
+  await writeJsonAtomic(p.installations, data)
 }
 
 export async function listInstallations(): Promise<InstallationEntry[]> {

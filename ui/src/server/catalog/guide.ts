@@ -5,6 +5,7 @@ import {
   type GuideEntry,
   type PatchMasterName,
 } from '../../shared/schemas'
+import { writeJsonAtomic } from '../installer/fs-utils'
 import { catalogPaths } from './paths'
 
 const EMPTY: ApplicationGuide = {
@@ -27,7 +28,7 @@ export async function readGuide(catalogRoot: string): Promise<ApplicationGuide> 
 export async function writeGuide(catalogRoot: string, guide: ApplicationGuide): Promise<void> {
   const p = catalogPaths(catalogRoot)
   const normalized = normalizeOrder(guide)
-  await fs.writeFile(p.guide, JSON.stringify(normalized, null, 2) + '\n', 'utf8')
+  await writeJsonAtomic(p.guide, normalized)
 }
 
 function normalizeOrder(guide: ApplicationGuide): ApplicationGuide {

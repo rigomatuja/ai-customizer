@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises'
-import path from 'node:path'
 import { TriggersFileSchema, type TriggersFile } from '../../shared/schemas'
+import { writeJsonAtomic } from '../installer/fs-utils'
 import { catalogPaths } from './paths'
 
 const EMPTY: TriggersFile = { schemaVersion: '1.0', triggers: [] }
@@ -19,8 +19,7 @@ export async function readTriggers(catalogRoot: string): Promise<TriggersFile> {
 
 export async function writeTriggers(catalogRoot: string, file: TriggersFile): Promise<void> {
   const p = catalogPaths(catalogRoot)
-  await fs.mkdir(path.dirname(p.triggers), { recursive: true })
-  await fs.writeFile(p.triggers, JSON.stringify(file, null, 2) + '\n', 'utf8')
+  await writeJsonAtomic(p.triggers, file)
 }
 
 export async function addTrigger(catalogRoot: string, trigger: string): Promise<TriggersFile> {

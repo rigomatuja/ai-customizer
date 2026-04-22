@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import fs from 'node:fs/promises'
-import path from 'node:path'
 import { HistoryFileSchema, type HistoryEntry, type HistoryFile } from '../../shared/schemas'
+import { writeJsonAtomic } from '../installer/fs-utils'
 import { userConfigPaths } from './paths'
 
 const EMPTY: HistoryFile = { schemaVersion: '1.0', entries: [] }
@@ -21,8 +21,7 @@ async function readFile(): Promise<HistoryFile> {
 
 async function writeFile(data: HistoryFile): Promise<void> {
   const p = userConfigPaths()
-  await fs.mkdir(path.dirname(p.history), { recursive: true })
-  await fs.writeFile(p.history, JSON.stringify(data, null, 2) + '\n', 'utf8')
+  await writeJsonAtomic(p.history, data)
 }
 
 export async function listHistory(): Promise<HistoryEntry[]> {

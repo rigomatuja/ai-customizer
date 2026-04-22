@@ -1,6 +1,5 @@
 import { existsSync } from 'node:fs'
 import fs from 'node:fs/promises'
-import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import {
   ProjectsFileSchema,
@@ -9,6 +8,7 @@ import {
   type ProjectUpdateInput,
   type ProjectsFile,
 } from '../../shared/schemas'
+import { writeJsonAtomic } from '../installer/fs-utils'
 import { userConfigPaths } from './paths'
 
 async function readFile(): Promise<ProjectsFile> {
@@ -29,8 +29,7 @@ async function readFile(): Promise<ProjectsFile> {
 
 async function writeFile(data: ProjectsFile): Promise<void> {
   const p = userConfigPaths()
-  await fs.mkdir(path.dirname(p.projects), { recursive: true })
-  await fs.writeFile(p.projects, JSON.stringify(data, null, 2) + '\n', 'utf8')
+  await writeJsonAtomic(p.projects, data)
 }
 
 export async function listProjects(): Promise<ProjectEntry[]> {

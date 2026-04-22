@@ -13,6 +13,7 @@ import type {
 import { ManifestSchema } from '../../shared/schemas'
 import { catalogPaths } from '../catalog/paths'
 import { userConfigPaths } from '../state/paths'
+import { writeJsonAtomic } from './fs-utils'
 
 interface HookRegistryEntry {
   customId: string
@@ -133,8 +134,7 @@ function groupByScope(
 }
 
 async function writeRegistry(filePath: string, content: HookRegistryFile): Promise<void> {
-  await fs.mkdir(path.dirname(filePath), { recursive: true })
-  await fs.writeFile(filePath, JSON.stringify(content, null, 2) + '\n', 'utf8')
+  await writeJsonAtomic(filePath, content)
 }
 
 export async function regenerateHookRegistries(params: {

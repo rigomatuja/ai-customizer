@@ -1,11 +1,11 @@
 import { existsSync } from 'node:fs'
 import fs from 'node:fs/promises'
-import path from 'node:path'
 import {
   TrackerFileSchema,
   type TrackerFile,
   type TrackerOp,
 } from '../../shared/schemas'
+import { writeJsonAtomic } from '../installer/fs-utils'
 import { userConfigPaths } from './paths'
 
 function emptyTracker(catalogPath: string): TrackerFile {
@@ -34,8 +34,7 @@ export async function readTracker(catalogPath: string): Promise<TrackerFile> {
 
 export async function writeTracker(data: TrackerFile): Promise<void> {
   const p = userConfigPaths()
-  await fs.mkdir(path.dirname(p.installState), { recursive: true })
-  await fs.writeFile(p.installState, JSON.stringify(data, null, 2) + '\n', 'utf8')
+  await writeJsonAtomic(p.installState, data)
 }
 
 export function trackerOpsFor(

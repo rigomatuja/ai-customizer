@@ -1,21 +1,12 @@
 import { existsSync } from 'node:fs'
 import fs from 'node:fs/promises'
-import path from 'node:path'
 import {
   UserConfigSchema,
   type ToolsOverride,
   type UserConfig,
 } from '../../shared/schemas'
+import { ensureDir, writeJsonAtomic } from '../installer/fs-utils'
 import { userConfigPaths } from './paths'
-
-async function ensureDir(dir: string): Promise<void> {
-  await fs.mkdir(dir, { recursive: true })
-}
-
-async function writeJson(filePath: string, data: unknown): Promise<void> {
-  await ensureDir(path.dirname(filePath))
-  await fs.writeFile(filePath, JSON.stringify(data, null, 2) + '\n', 'utf8')
-}
 
 export async function readUserConfig(): Promise<UserConfig | null> {
   const p = userConfigPaths()
@@ -32,7 +23,7 @@ export async function readUserConfig(): Promise<UserConfig | null> {
 
 export async function writeUserConfig(cfg: UserConfig): Promise<void> {
   const p = userConfigPaths()
-  await writeJson(p.config, cfg)
+  await writeJsonAtomic(p.config, cfg)
 }
 
 export interface InitConfigInput {
