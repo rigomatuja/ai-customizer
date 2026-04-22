@@ -10,6 +10,8 @@ import {
 } from '../../shared/schemas'
 import { writeJsonAtomic } from '../installer/fs-utils'
 import { userConfigPaths } from './paths'
+import { readTracker } from './tracker'
+import { getCatalogPath } from '../catalog/paths'
 
 async function readFile(): Promise<ProjectsFile> {
   const p = userConfigPaths()
@@ -64,11 +66,50 @@ export async function updateProject(
   return updated
 }
 
-export async function deleteProject(id: string): Promise<boolean> {
+export interface ProjectDeleteBlocker {
+  code: 'has-installations'
+  message: string
+  installedCustoms: Array<{ customType: string; customId: string; tool: string }>
+}
+
+export async function deleteProject(
+  id: string,
+  force: boolean = false,
+): Promise<{ ok: boolean; notFound: boolean; blocker?: ProjectDeleteBlocker }> {
   const file = await readFile()
-  const before = file.projects.length
+  const target = file.projects.find((p) => p.id === id)
+  if (!target) return { ok: false, notFound: true }
+
+  if (!force) {
+    // Block deletion if any tracker op points at this project.
+    try {
+      const catalogPath = getCatalogPath()
+      const tracker = await readTracker(catalogPath)
+      const installedHere = tracker.operations.filter(
+        (op) => op.target.scope === 'project' && op.target.projectId === id,
+      )
+      if (installedHere.length > 0) {
+        return {
+          ok: false,
+          notFound: false,
+          blocker: {
+            code: 'has-installations',
+            message: `Cannot delete project "${target.name}" — ${installedHere.length} custom(s) are still installed there. Uninstall them first, or pass { force: true } to delete the project anyway (leaves installed files on disk).`,
+            installedCustoms: installedHere.map((op) => ({
+              customType: op.customType,
+              customId: op.customId,
+              tool: op.tool,
+            })),
+          },
+        }
+      }
+    } catch {
+      // If tracker / catalog are unavailable, skip the guard rather
+      // than block the delete.
+    }
+  }
+
   file.projects = file.projects.filter((p) => p.id !== id)
-  if (file.projects.length === before) return false
   await writeFile(file)
-  return true
+  return { ok: true, notFound: false }
 }

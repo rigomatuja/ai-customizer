@@ -275,9 +275,19 @@ export async function computePlan(input: PlannerInput): Promise<Plan> {
       })
     }
 
-    // Dep check (non-blocking, informative warning for now)
-    if (summary.tools && summary.hasHook) {
-      // placeholder for future hook-registry sync warnings
+    // Dependencies.customs: if the manifest declares a dep on another
+    // custom, the dep must be in the desired (active) set. Otherwise
+    // we hard-block the Apply.
+    const manifest = manifests.get(`${entry.customType}:${entry.customId}`)
+    const declaredDeps = manifest && manifest.type !== 'patch' ? manifest.dependencies?.customs ?? [] : []
+    for (const dep of declaredDeps) {
+      if (!desired.has(dep)) {
+        blockers.push({
+          code: 'dependency-not-active',
+          message: `${key} requires ${dep} to be active, but it is not. Activate ${dep} first or remove the dependency.`,
+          customId: entry.customId,
+        })
+      }
     }
   }
 

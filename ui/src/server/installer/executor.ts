@@ -92,12 +92,18 @@ export async function executePlan(input: ExecutionInput): Promise<ApplyResponse>
     // Still regenerate the hook registry so orchestrators see the
     // current hook set even when Apply had nothing else to do.
     const tracker = await readTracker(catalogPath)
-    await regenerateHookRegistries({ catalogRoot: catalogPath, tracker, projects }).catch(() => undefined)
+    let registryError: string | null = null
+    try {
+      await regenerateHookRegistries({ catalogRoot: catalogPath, tracker, projects })
+    } catch (err) {
+      registryError = err instanceof Error ? err.message : String(err)
+      console.error(`[ai-customizer] hook-registry regen failed: ${registryError}`)
+    }
     return {
       applyId,
       result: 'success',
       backupPath: null,
-      error: null,
+      error: registryError ? `hook-registry: ${registryError}` : null,
       durationMs: Date.now() - startedAt,
       installCount,
       upgradeCount,
@@ -108,6 +114,11 @@ export async function executePlan(input: ExecutionInput): Promise<ApplyResponse>
 
   const backup = await createBackup(projectPaths)
   const backupPath = backup?.path ?? null
+  if (!backupPath && (plan.operations.length > 0 || plan.patchOperations.length > 0)) {
+    console.warn(
+      '[ai-customizer] Apply proceeding WITHOUT tar.gz backup — no live ~/.claude or ~/.config/opencode or project dirs to snapshot. Atomic rollback still works for copy ops, but delete ops cannot be reversed if they fail.',
+    )
+  }
 
   const home = os.homedir()
   const cleanupStops = [home, ...projectPaths]
@@ -191,7 +202,13 @@ export async function executePlan(input: ExecutionInput): Promise<ApplyResponse>
     tracker.lastApply = new Date().toISOString()
     await writeTracker(tracker)
 
-    await regenerateHookRegistries({ catalogRoot: catalogPath, tracker, projects }).catch(() => undefined)
+    let registryError: string | null = null
+    try {
+      await regenerateHookRegistries({ catalogRoot: catalogPath, tracker, projects })
+    } catch (err) {
+      registryError = err instanceof Error ? err.message : String(err)
+      console.error(`[ai-customizer] hook-registry regen failed: ${registryError}`)
+    }
 
     const duration = Date.now() - startedAt
     await appendHistory({
@@ -203,7 +220,7 @@ export async function executePlan(input: ExecutionInput): Promise<ApplyResponse>
       uninstallCount,
       patchCount,
       backupPath,
-      error: null,
+      error: registryError ? `hook-registry: ${registryError}` : null,
       durationMs: duration,
     })
 
@@ -211,7 +228,7 @@ export async function executePlan(input: ExecutionInput): Promise<ApplyResponse>
       applyId,
       result: 'success',
       backupPath,
-      error: null,
+      error: registryError ? `hook-registry: ${registryError}` : null,
       durationMs: duration,
       installCount,
       upgradeCount,

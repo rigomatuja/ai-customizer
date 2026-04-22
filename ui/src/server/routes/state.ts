@@ -108,7 +108,11 @@ stateRoutes.put('/projects/:id', async (c) => {
 
 stateRoutes.delete('/projects/:id', async (c) => {
   const id = c.req.param('id')
-  const ok = await deleteProject(id)
-  if (!ok) return c.json({ error: 'project not found', code: 'not-found' }, 404)
+  const force = c.req.query('force') === '1' || c.req.query('force') === 'true'
+  const result = await deleteProject(id, force)
+  if (result.notFound) return c.json({ error: 'project not found', code: 'not-found' }, 404)
+  if (!result.ok && result.blocker) {
+    return c.json({ error: result.blocker.message, code: result.blocker.code, details: result.blocker.installedCustoms }, 409)
+  }
   return c.json({ deleted: true })
 })

@@ -94,46 +94,59 @@ interface ForceUninstallInput {
 
 export async function forceUninstallOrphan(
   params: ForceUninstallInput,
-): Promise<{ deletedPaths: string[]; removedGuideEntries: number; notFound: boolean }> {
+): Promise<{
+  deletedPaths: string[]
+  failedPaths: Array<{ path: string; error: string }>
+  removedGuideEntries: number
+  notFound: boolean
+}> {
   const catalogPath = getCatalogPath()
   const tracker = await readTracker(catalogPath)
   const matching = tracker.operations.filter(
     (o) => o.customType === params.customType && o.customId === params.customId,
   )
   if (matching.length === 0) {
-    return { deletedPaths: [], removedGuideEntries: 0, notFound: true }
+    return { deletedPaths: [], failedPaths: [], removedGuideEntries: 0, notFound: true }
   }
 
   const home = os.homedir()
 
-  // Pre-validate: collect paths and sanity-check before any mutation.
-  const toDelete: string[] = matching
-    .filter((op) => op.type === 'copy')
-    .map((op) => op.toPath)
-
+  // Collect per-op (path, opId) and process each. Only drop tracker
+  // ops whose delete succeeded — leaves partial state consistent and
+  // lets the user retry the stragglers.
   const deletedPaths: string[] = []
-  for (const p of toDelete) {
-    if (existsSync(p)) {
-      await deleteFileAndCleanup(p, home)
-      deletedPaths.push(p)
+  const failedPaths: Array<{ path: string; error: string }> = []
+  const succeededOpIds = new Set<string>()
+
+  for (const op of matching) {
+    if (op.type !== 'copy') {
+      succeededOpIds.add(op.opId)
+      continue
+    }
+    try {
+      if (existsSync(op.toPath)) {
+        await deleteFileAndCleanup(op.toPath, home)
+        deletedPaths.push(op.toPath)
+      }
+      succeededOpIds.add(op.opId)
+    } catch (err) {
+      failedPaths.push({
+        path: op.toPath,
+        error: err instanceof Error ? err.message : String(err),
+      })
     }
   }
 
-  // Remove from tracker.
-  tracker.operations = tracker.operations.filter(
-    (o) => !(o.customType === params.customType && o.customId === params.customId),
-  )
+  // Drop tracker ops only for successful deletes.
+  tracker.operations = tracker.operations.filter((o) => !succeededOpIds.has(o.opId))
   tracker.catalogPath = catalogPath
   await writeTracker(tracker)
 
-  // Cascade to application-guide: if any entries referenced this custom
-  // as a patchId (unusual — patches and skills/agents live in different
-  // namespaces), drop them. Harmless no-op in the common case.
+  // Cascade to application-guide: if any entries referenced this
+  // custom as a patchId (unusual — patches and skills/agents live in
+  // different namespaces), drop them. Harmless no-op in the common
+  // case.
   let removedGuideEntries = 0
-  if (params.customType !== 'skill' && params.customType !== 'agent') {
-    // Guide entries only exist for patches, which are handled elsewhere.
-    return { deletedPaths, removedGuideEntries, notFound: false }
-  }
   const guide = await readGuide(catalogPath)
   for (const target of ['CLAUDE.md', 'AGENTS.md'] as const) {
     const before = guide.targets[target].length
@@ -144,7 +157,7 @@ export async function forceUninstallOrphan(
     await writeGuide(catalogPath, guide)
   }
 
-  return { deletedPaths, removedGuideEntries, notFound: false }
+  return { deletedPaths, failedPaths, removedGuideEntries, notFound: false }
 }
 
 /**
