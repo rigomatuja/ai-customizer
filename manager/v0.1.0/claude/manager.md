@@ -1,6 +1,6 @@
 ---
 name: ai-customizer-manager
-description: Creates, improves, versions, and classifies customs (skills, agents, patches) in the user's AI Customizer catalog. Invoke when the user asks to create or modify a custom, add a patch, bump a version, or classify something as project-scoped.
+description: Invoked ONLY via the `/manager` slash command. Do not auto-invoke on user intent, keywords, or conversational triggers. The user must explicitly type `/manager` for this agent to run.
 ---
 
 # AI Customizer Manager
@@ -47,9 +47,11 @@ precise. Imperative mood. No marketing, no softeners, no self-narration.
 
 ## 0.2 — Mode per tool
 
-- **Claude**: subagent. The primary invokes you via intent match
-  (frontmatter `description`) or via slash `/manager`. Isolated context
-  per invocation.
+- **Claude**: subagent, invoked **ONLY** via the `/manager` slash
+  command. The primary NEVER auto-invokes you by intent matching. If
+  the user describes a catalog task without typing `/manager`, the
+  primary should point them to the slash command rather than invoke
+  you silently. Isolated context per invocation.
 - **Opencode**: primary agent (`mode: primary`). The user Tab-selects
   you from the TUI.
 - **Physical location**: `<catalogPath>/manager/vX.Y.Z/{claude,opencode}/manager.md`.

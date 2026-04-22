@@ -155,12 +155,23 @@ export const api = {
       catalogVersion: string | null
       installed: Record<
         'claude' | 'opencode',
-        { installed: boolean; path: string; version: string | null }
+        {
+          installed: boolean
+          path: string
+          version: string | null
+          slashCommandInstalled?: boolean
+          slashCommandPath?: string
+        }
       >
     }>('/api/manager'),
   installManager: (tools: Array<'claude' | 'opencode'>) =>
     jsonPost<{
-      installed: Array<{ tool: 'claude' | 'opencode'; path: string; version: string }>
+      installed: Array<{
+        tool: 'claude' | 'opencode'
+        path: string
+        version: string
+        kind: 'agent' | 'slash-command'
+      }>
       skipped: Array<{ tool: 'claude' | 'opencode'; reason: string }>
     }>('/api/manager/install', { tools }),
   uninstallManager: () =>

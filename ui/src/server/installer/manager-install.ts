@@ -12,18 +12,62 @@ import { copyFile, hashFile } from './fs-utils'
 export interface ManagerStatus {
   present: boolean
   catalogVersion: string | null
-  installed: Record<Tool, { installed: boolean; path: string; version: string | null }>
+  installed: Record<
+    Tool,
+    {
+      installed: boolean
+      path: string
+      version: string | null
+      slashCommandInstalled?: boolean
+      slashCommandPath?: string
+    }
+  >
 }
 
-function managerSource(catalogPath: string, version: string, tool: Tool): string {
-  return path.join(catalogPath, 'manager', `v${version}`, tool, 'manager.md')
+/**
+ * One install asset = one source/dest pair for a tool.
+ * Manager install produces:
+ *  - Claude:   agent file + slash command file   (2 assets)
+ *  - Opencode: agent file only                    (1 asset)
+ */
+interface ManagerAsset {
+  kind: 'agent' | 'slash-command'
+  src: string
+  dst: string
 }
 
-function managerDest(tool: Tool): string {
+function managerAssets(catalogPath: string, version: string, tool: Tool): ManagerAsset[] {
+  const home = os.homedir()
+  const agent: ManagerAsset = {
+    kind: 'agent',
+    src: path.join(catalogPath, 'manager', `v${version}`, tool, 'manager.md'),
+    dst:
+      tool === 'claude'
+        ? path.join(home, '.claude', 'agents', 'manager.md')
+        : path.join(home, '.config', 'opencode', 'agent', 'manager.md'),
+  }
+
+  if (tool !== 'claude') return [agent]
+
+  // Claude-only: slash command file that lets the user invoke the
+  // manager via `/manager`. Opencode has no slash commands.
+  const slash: ManagerAsset = {
+    kind: 'slash-command',
+    src: path.join(catalogPath, 'manager', `v${version}`, 'claude', 'slash-command.md'),
+    dst: path.join(home, '.claude', 'commands', 'manager.md'),
+  }
+  return [agent, slash]
+}
+
+function managerAgentDest(tool: Tool): string {
   const home = os.homedir()
   return tool === 'claude'
     ? path.join(home, '.claude', 'agents', 'manager.md')
     : path.join(home, '.config', 'opencode', 'agent', 'manager.md')
+}
+
+function claudeSlashCommandDest(): string {
+  return path.join(os.homedir(), '.claude', 'commands', 'manager.md')
 }
 
 async function readManagerManifest(catalogPath: string) {
@@ -47,14 +91,27 @@ export async function getManagerStatus(): Promise<ManagerStatus> {
   const tracker = await readTracker(catalogPath)
 
   const statusFor = (tool: Tool) => {
-    const dest = managerDest(tool)
+    const agentDest = managerAgentDest(tool)
     const trackerEntry = tracker.operations.find(
-      (o) => o.customType === 'agent' && o.customId === 'manager' && o.tool === tool,
+      (o) =>
+        o.customType === 'agent' &&
+        o.customId === 'manager' &&
+        o.tool === tool &&
+        o.toPath === agentDest,
     )
-    return {
-      installed: existsSync(dest),
-      path: dest,
+    const base = {
+      installed: existsSync(agentDest),
+      path: agentDest,
       version: trackerEntry?.version ?? null,
+    }
+
+    if (tool !== 'claude') return base
+
+    const slashDest = claudeSlashCommandDest()
+    return {
+      ...base,
+      slashCommandInstalled: existsSync(slashDest),
+      slashCommandPath: slashDest,
     }
   }
 
@@ -69,7 +126,7 @@ export async function getManagerStatus(): Promise<ManagerStatus> {
 }
 
 export interface InstallManagerResult {
-  installed: Array<{ tool: Tool; path: string; version: string }>
+  installed: Array<{ tool: Tool; path: string; version: string; kind: 'agent' | 'slash-command' }>
   skipped: Array<{ tool: Tool; reason: string }>
 }
 
@@ -87,14 +144,16 @@ async function installManagerImpl(catalogPath: string, tools: Tool[]): Promise<I
   const skipped: InstallManagerResult['skipped'] = []
   const now = new Date().toISOString()
 
-  // Capture any existing manager install on disk BEFORE we touch
-  // anything — used for rollback if a later copy fails.
-  const previousSnapshot = new Map<string, string>() // dst path → original content
-  for (const tool of tools) {
-    const dst = managerDest(tool)
-    if (existsSync(dst)) {
-      const fs = await import('node:fs/promises')
-      previousSnapshot.set(dst, await fs.readFile(dst, 'utf8'))
+  // Expand each tool into its assets (1 for Opencode, 2 for Claude).
+  const plannedAssets: Array<{ tool: Tool; asset: ManagerAsset }> = tools.flatMap((tool) =>
+    managerAssets(catalogPath, version, tool).map((asset) => ({ tool, asset })),
+  )
+
+  // Snapshot any pre-existing destination content for rollback.
+  const previousSnapshot = new Map<string, string>()
+  for (const { asset } of plannedAssets) {
+    if (existsSync(asset.dst)) {
+      previousSnapshot.set(asset.dst, await fs.readFile(asset.dst, 'utf8'))
     }
   }
 
@@ -102,31 +161,29 @@ async function installManagerImpl(catalogPath: string, tools: Tool[]): Promise<I
   const copiedPaths: string[] = []
 
   try {
-    for (const tool of tools) {
-      const src = managerSource(catalogPath, version, tool)
-      if (!existsSync(src)) {
-        skipped.push({ tool, reason: `source file not found: ${src}` })
+    for (const { tool, asset } of plannedAssets) {
+      if (!existsSync(asset.src)) {
+        skipped.push({
+          tool,
+          reason: `${asset.kind} source file not found: ${asset.src}`,
+        })
         continue
       }
-      const dst = managerDest(tool)
-      // Guard against symlink misconfiguration where src resolves to
-      // the same path as dst — copying onto itself would delete the
-      // source, and our rollback would restore stale content.
-      const { default: path } = await import('node:path')
-      const { default: fs } = await import('node:fs/promises')
+      // Guard against symlink misconfiguration (src === dst).
       const [srcReal, dstReal] = await Promise.all([
-        fs.realpath(src).catch(() => path.resolve(src)),
-        fs.realpath(dst).catch(() => path.resolve(dst)),
+        fs.realpath(asset.src).catch(() => path.resolve(asset.src)),
+        fs.realpath(asset.dst).catch(() => path.resolve(asset.dst)),
       ])
       if (srcReal === dstReal) {
         skipped.push({
           tool,
-          reason: `source and destination resolve to the same path (${srcReal}) — symlink misconfig?`,
+          reason: `${asset.kind} source and destination resolve to the same path (${srcReal}) — symlink misconfig?`,
         })
         continue
       }
-      await copyFile(src, dst)
-      copiedPaths.push(dst)
+
+      await copyFile(asset.src, asset.dst)
+      copiedPaths.push(asset.dst)
 
       stagedOps.push({
         opId: randomUUID(),
@@ -136,24 +193,23 @@ async function installManagerImpl(catalogPath: string, tools: Tool[]): Promise<I
         version,
         tool,
         target: { scope: 'global' },
-        toPath: dst,
-        fromPath: src,
-        contentHash: await hashFile(dst),
+        toPath: asset.dst,
+        fromPath: asset.src,
+        contentHash: await hashFile(asset.dst),
         installedAt: now,
       })
-      installed.push({ tool, path: dst, version })
+      installed.push({ tool, path: asset.dst, version, kind: asset.kind })
     }
   } catch (err) {
-    // Rollback: restore any previous content, delete files that didn't
-    // exist before, and rethrow. Tracker is untouched.
-    const fsp = await import('node:fs/promises')
+    // Rollback: restore prior content or delete files that didn't
+    // exist before. Tracker is untouched.
     for (const p of copiedPaths) {
       const prev = previousSnapshot.get(p)
       try {
         if (prev !== undefined) {
-          await fsp.writeFile(p, prev, 'utf8')
+          await fs.writeFile(p, prev, 'utf8')
         } else if (existsSync(p)) {
-          await fsp.unlink(p)
+          await fs.unlink(p)
         }
       } catch (rollbackErr) {
         console.error(
@@ -191,6 +247,8 @@ async function uninstallManagerImpl(
   const tracker = await readTracker(catalogPath)
   const removed: Array<{ tool: Tool; path: string }> = []
 
+  // All manager tracker ops — both agent and slash-command entries for
+  // Claude, just the agent for Opencode.
   const entries = tracker.operations.filter(
     (o) => o.customType === 'agent' && o.customId === 'manager',
   )
