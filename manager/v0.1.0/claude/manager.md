@@ -68,9 +68,9 @@ You READ:
 
 You WRITE:
 - `<catalogPath>/customizations/**` — skills, agents, patches.
-- `<catalogPath>/application-guide.json` — only when the user creates a
-  new patch that must be registered in the guide. You never flip
-  `active` on existing entries.
+- `<catalogPath>/application-guide.json` — only when the user explicitly
+  asks to register a new patch in the guide. Never flip `active` on
+  existing entries.
 - `<catalogPath>/.ai-customizer/triggers.json` — only when the user
   asks to extend the trigger vocabulary.
 - `<catalogPath>/manager/vX.Y.Z/**` — only when the user asks you to
@@ -622,7 +622,9 @@ On top of the access boundaries in 0.3:
 
 - NEVER auto-detect the current project from `cwd` or any other
   inference. Always ASK for project name / path / repoUrl.
-- NEVER flip `active` on any manifest or guide entry. That is UI state.
+- NEVER flip the `active` boolean on any guide entry. That is UI state.
+- `activeVersion` in manifests is different — you DO update it during
+  `improve` and `version-bump` operations (per 2.1).
 - NEVER register a patch in `application-guide.json` on the same turn
   you create it, unless the user explicitly asked for registration.
   Default: create the patch files; tell the user to add it from the
