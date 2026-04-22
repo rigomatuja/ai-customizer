@@ -167,11 +167,25 @@ function OrphansPanel() {
   const [err, setErr] = useState<string | null>(null)
 
   const handleForceUninstall = async (customType: 'skill' | 'agent', customId: string) => {
-    if (!confirm(`Force-uninstall ${customType}:${customId}? This removes the installed files.`)) return
+    if (!confirm(`Force-uninstall ${customType}:${customId}? This removes installed files and any guide entries referencing it.`)) return
     setBusy(`${customType}:${customId}`)
     setErr(null)
     try {
       await api.forceUninstallOrphan(customType, customId)
+      refetch()
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const handleForceUninstallPatch = async (target: 'CLAUDE.md' | 'AGENTS.md') => {
+    if (!confirm(`Force-uninstall patch tracker entry for ${target}? Master will be restored from .original and guide entries for this target cleared.`)) return
+    setBusy(`patch:${target}`)
+    setErr(null)
+    try {
+      await api.forceUninstallPatchOrphan(target)
       refetch()
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e))
@@ -197,23 +211,40 @@ function OrphansPanel() {
             {err ? <p className="error">{err}</p> : null}
             <ul className="orphans-list">
               {state.data.orphans.map((o) => {
-                const key = `${o.customType}:${o.customId}`
+                const key =
+                  o.kind === 'patch'
+                    ? `patch:${o.installedPaths[0] ?? ''}`
+                    : `${o.customType}:${o.customId}`
                 return (
-                  <li key={`${key}-${o.tool}`} className="orphans-item">
+                  <li key={key} className="orphans-item">
                     <div>
                       <strong>
-                        {o.customType}:{o.customId}
+                        {o.kind === 'patch' ? 'patch master' : `${o.customType}:${o.customId}`}
                       </strong>{' '}
-                      <span className="muted small">
-                        v{o.version} · tool: {o.tool}
-                      </span>
+                      {o.version ? <span className="muted small">v{o.version}</span> : null}
+                      {o.tools.length > 0 ? (
+                        <span className="muted small"> · tools: {o.tools.join(', ')}</span>
+                      ) : null}
                       <div className="muted small">
-                        <code>{o.installedPath}</code>
+                        {o.installedPaths.map((p) => (
+                          <div key={p}>
+                            <code>{p}</code>
+                          </div>
+                        ))}
                       </div>
                     </div>
                     <button
                       className="button button-danger button-sm"
-                      onClick={() => handleForceUninstall(o.customType, o.customId)}
+                      onClick={() => {
+                        if (o.kind === 'patch') {
+                          const target = o.installedPaths[0]?.endsWith('AGENTS.md')
+                            ? ('AGENTS.md' as const)
+                            : ('CLAUDE.md' as const)
+                          void handleForceUninstallPatch(target)
+                        } else if (o.customType === 'skill' || o.customType === 'agent') {
+                          void handleForceUninstall(o.customType, o.customId)
+                        }
+                      }}
                       disabled={busy !== null}
                     >
                       {busy === key ? 'Removing…' : 'Force uninstall'}

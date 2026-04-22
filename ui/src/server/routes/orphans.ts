@@ -1,7 +1,11 @@
 import { Hono } from 'hono'
 import { loadCatalog } from '../catalog/loader'
 import { getCatalogPath } from '../catalog/paths'
-import { computeOrphans, forceUninstallOrphan } from '../installer/orphans'
+import {
+  computeOrphans,
+  forceUninstallOrphan,
+  forceUninstallPatchOrphan,
+} from '../installer/orphans'
 import { readTracker } from '../state/tracker'
 
 export const orphansRoutes = new Hono()
@@ -21,5 +25,15 @@ orphansRoutes.delete('/:customType/:customId', async (c) => {
   }
   const result = await forceUninstallOrphan({ customType, customId })
   if (result.notFound) return c.json({ error: 'no tracker entries', code: 'not-found' }, 404)
+  return c.json(result)
+})
+
+orphansRoutes.delete('/patch/:target', async (c) => {
+  const target = c.req.param('target')
+  if (target !== 'CLAUDE.md' && target !== 'AGENTS.md') {
+    return c.json({ error: `invalid target: ${target}`, code: 'bad-request' }, 400)
+  }
+  const result = await forceUninstallPatchOrphan(target)
+  if (result.notFound) return c.json({ error: 'no patch tracker entry', code: 'not-found' }, 404)
   return c.json(result)
 })

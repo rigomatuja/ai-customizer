@@ -172,16 +172,25 @@ export const api = {
   orphans: () =>
     request<{
       orphans: Array<{
+        kind: 'skill-or-agent' | 'patch'
         customId: string
-        customType: 'skill' | 'agent'
+        customType: 'skill' | 'agent' | 'patch'
         version: string
-        tool: 'claude' | 'opencode'
-        installedPath: string
+        tools: Array<'claude' | 'opencode'>
+        installedPaths: string[]
         reason: string
       }>
     }>('/api/orphans'),
   forceUninstallOrphan: (customType: 'skill' | 'agent', customId: string) =>
-    jsonDelete<{ deletedPaths: string[]; notFound: boolean }>(
-      `/api/orphans/${customType}/${encodeURIComponent(customId)}`,
-    ),
+    jsonDelete<{
+      deletedPaths: string[]
+      removedGuideEntries: number
+      notFound: boolean
+    }>(`/api/orphans/${customType}/${encodeURIComponent(customId)}`),
+  forceUninstallPatchOrphan: (target: 'CLAUDE.md' | 'AGENTS.md') =>
+    jsonDelete<{
+      restored: boolean
+      removedGuideEntries: number
+      notFound: boolean
+    }>(`/api/orphans/patch/${encodeURIComponent(target)}`),
 }
