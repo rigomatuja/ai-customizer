@@ -64,7 +64,7 @@ export type Hook = z.infer<typeof HookSchema>
 const BaseManifestShape = {
   id: CustomId,
   name: z.string().min(1),
-  description: z.string(),
+  description: z.string().min(1),
   category: z.string().min(1),
   scope: Scope,
   project: ProjectMetadataSchema.nullable().optional(),

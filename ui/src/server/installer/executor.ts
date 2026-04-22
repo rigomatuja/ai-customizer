@@ -221,6 +221,17 @@ async function executePlanImpl(input: ExecutionInput): Promise<ApplyResponse> {
     }
 
     const duration = Date.now() - startedAt
+    log.info('apply', 'success', {
+      applyId,
+      installCount,
+      upgradeCount,
+      uninstallCount,
+      patchCount,
+      durationMs: duration,
+      backupPath,
+      registryError,
+    })
+
     await appendHistory({
       applyId,
       timestamp: new Date().toISOString(),

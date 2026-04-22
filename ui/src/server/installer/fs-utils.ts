@@ -31,6 +31,17 @@ export async function writeJsonAtomic(filePath: string, data: unknown): Promise<
 }
 
 export async function copyFile(from: string, to: string): Promise<void> {
+  // Guard against symlink misconfigurations where src and dst resolve
+  // to the same inode — copying onto itself can truncate the source.
+  // The dst may not exist yet; in that case realpath of dst throws,
+  // which is fine (no aliasing possible).
+  const fromReal = await fs.realpath(from).catch(() => path.resolve(from))
+  const toReal = await fs.realpath(to).catch(() => path.resolve(to))
+  if (fromReal === toReal) {
+    throw new Error(
+      `copyFile: source and destination resolve to the same path (${fromReal}) — refusing to clobber source`,
+    )
+  }
   await ensureDir(path.dirname(to))
   await fs.copyFile(from, to)
 }
