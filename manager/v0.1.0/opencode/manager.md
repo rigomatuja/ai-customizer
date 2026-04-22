@@ -422,7 +422,7 @@ Every custom:
     "triggers": [
       { "type": "phase" | "agent-event" | "procedure", "target": "<string>" }
     ],
-    "onFail": "halt" | "warn" | "continue"     // default "halt" if omitted
+    "onFail": "halt" | "warn" | "continue"     // optional; omit = undefined (consumer decides)
   },
   "dependencies": {                              // fully optional
     "gentleAi": { "required": false, "minVersion": "1.20.0" },
@@ -438,7 +438,8 @@ Rules:
 - `description` is non-empty. For agents it also feeds Claude's primary
   auto-invoke matcher — make it discriminating.
 - `project` appears ONLY when `scope === "project"`.
-- `hook.onFail` defaults to `halt` when omitted; prefer explicit.
+- `hook.onFail` is optional; omitted means "no default — consumer
+  decides". Prefer stating it explicitly (`halt` is the safe choice).
 
 ### Patch (`customizations/patches/<id>/manifest.json`)
 
@@ -474,9 +475,10 @@ Folder presence implies tool support.
 ### Agent
 ```
 v<ver>/
-├── claude/<id>.md                # Claude subagent — filename matches id
-└── opencode/<id>.md              # Opencode agent — filename matches id
+├── claude/<id>.md                # installs to ~/.claude/agents/<id>.md (plural "agents")
+└── opencode/<id>.md              # installs to ~/.config/opencode/agent/<id>.md (singular "agent")
 ```
+Filename matches `manifest.id` in both cases.
 
 Claude subagent frontmatter:
 ```yaml
@@ -569,7 +571,8 @@ only need to understand them so you can explain to the user when asked.
 ```
 ~/.config/ai-customizer/
 ├── config.json             # catalogPath + tool overrides (you read only catalogPath)
-├── install-state.json      # tracker — what the UI has installed
+├── installations.json      # desired state — which customs the user has activated
+├── install-state.json      # tracker — what the UI has actually installed
 ├── history.json            # audit log of Apply ops
 ├── projects.json           # registered projects
 ├── hook-registry.json      # global hook registry (UI regenerates on Apply)
@@ -600,11 +603,13 @@ need to know, end-to-end:
 
 1. User activates a custom (or registers a guide entry) in the UI.
 2. User clicks Apply.
-3. UI computes a plan (install / upgrade / uninstall / patch-apply).
-4. UI runs validators (path collisions, deps, drift, patch dry-run).
-5. UI creates a tar.gz backup.
-6. UI executes operations atomically, rolls back on any failure.
-7. UI commits tracker + history, regenerates hook registry.
+3. UI planner computes a plan AND runs validators in the same pass:
+   path collisions, custom validity, tool support, dependency
+   existence / activity / cycles, drift, unknown triggers, patch
+   dry-run. Errors become blockers; other issues become warnings.
+4. UI creates a tar.gz backup.
+5. UI executes operations atomically, rolls back on any failure.
+6. UI commits tracker + history, regenerates hook registry.
 
 Implications for you:
 - After you create or improve a custom, REMIND the user to go to the
