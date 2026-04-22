@@ -6,7 +6,10 @@ import {
   type PatchMasterName,
 } from '../../shared/schemas'
 import { writeJsonAtomic } from '../installer/fs-utils'
+import { withLock } from '../util/mutex'
 import { catalogPaths } from './paths'
+
+const guideLockKey = (catalogRoot: string) => `guide:${catalogRoot}`
 
 const EMPTY: ApplicationGuide = {
   schemaVersion: '1.0',
@@ -48,17 +51,19 @@ export async function upsertGuideEntry(
   target: PatchMasterName,
   entry: GuideEntry,
 ): Promise<ApplicationGuide> {
-  const guide = await readGuide(catalogRoot)
-  const list = guide.targets[target]
-  const idx = list.findIndex((e) => e.patchId === entry.patchId)
-  if (idx === -1) {
-    const order = list.length > 0 ? Math.max(...list.map((e) => e.order)) + 1 : 0
-    list.push({ ...entry, order })
-  } else {
-    list[idx] = { ...list[idx]!, ...entry }
-  }
-  await writeGuide(catalogRoot, guide)
-  return guide
+  return withLock(guideLockKey(catalogRoot), async () => {
+    const guide = await readGuide(catalogRoot)
+    const list = guide.targets[target]
+    const idx = list.findIndex((e) => e.patchId === entry.patchId)
+    if (idx === -1) {
+      const order = list.length > 0 ? Math.max(...list.map((e) => e.order)) + 1 : 0
+      list.push({ ...entry, order })
+    } else {
+      list[idx] = { ...list[idx]!, ...entry }
+    }
+    await writeGuide(catalogRoot, guide)
+    return guide
+  })
 }
 
 export async function removeGuideEntry(
@@ -66,12 +71,14 @@ export async function removeGuideEntry(
   target: PatchMasterName,
   patchId: string,
 ): Promise<ApplicationGuide | null> {
-  const guide = await readGuide(catalogRoot)
-  const before = guide.targets[target].length
-  guide.targets[target] = guide.targets[target].filter((e) => e.patchId !== patchId)
-  if (guide.targets[target].length === before) return null
-  await writeGuide(catalogRoot, guide)
-  return guide
+  return withLock(guideLockKey(catalogRoot), async () => {
+    const guide = await readGuide(catalogRoot)
+    const before = guide.targets[target].length
+    guide.targets[target] = guide.targets[target].filter((e) => e.patchId !== patchId)
+    if (guide.targets[target].length === before) return null
+    await writeGuide(catalogRoot, guide)
+    return guide
+  })
 }
 
 export class ReorderMismatchError extends Error {
@@ -91,20 +98,22 @@ export async function reorderGuide(
   target: PatchMasterName,
   patchIds: string[],
 ): Promise<ApplicationGuide> {
-  const guide = await readGuide(catalogRoot)
-  const list = guide.targets[target]
-  const currentIds = new Set(list.map((e) => e.patchId))
-  const providedIds = new Set(patchIds)
+  return withLock(guideLockKey(catalogRoot), async () => {
+    const guide = await readGuide(catalogRoot)
+    const list = guide.targets[target]
+    const currentIds = new Set(list.map((e) => e.patchId))
+    const providedIds = new Set(patchIds)
 
-  const missing = [...currentIds].filter((id) => !providedIds.has(id))
-  const extra = [...providedIds].filter((id) => !currentIds.has(id))
-  if (missing.length > 0 || extra.length > 0) {
-    throw new ReorderMismatchError(missing, extra)
-  }
+    const missing = [...currentIds].filter((id) => !providedIds.has(id))
+    const extra = [...providedIds].filter((id) => !currentIds.has(id))
+    if (missing.length > 0 || extra.length > 0) {
+      throw new ReorderMismatchError(missing, extra)
+    }
 
-  const byId = new Map(list.map((e) => [e.patchId, e]))
-  const reordered: GuideEntry[] = patchIds.map((id, i) => ({ ...byId.get(id)!, order: i }))
-  guide.targets[target] = reordered
-  await writeGuide(catalogRoot, guide)
-  return guide
+    const byId = new Map(list.map((e) => [e.patchId, e]))
+    const reordered: GuideEntry[] = patchIds.map((id, i) => ({ ...byId.get(id)!, order: i }))
+    guide.targets[target] = reordered
+    await writeGuide(catalogRoot, guide)
+    return guide
+  })
 }

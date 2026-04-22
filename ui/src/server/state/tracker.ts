@@ -6,7 +6,19 @@ import {
   type TrackerOp,
 } from '../../shared/schemas'
 import { writeJsonAtomic } from '../installer/fs-utils'
+import { withLock } from '../util/mutex'
 import { userConfigPaths } from './paths'
+
+export const trackerLockKey = (catalogPath: string) => `tracker:${catalogPath}`
+
+/**
+ * Run `fn` while holding the tracker mutex for `catalogPath`.
+ * All tracker read-modify-write sequences MUST use this wrapper to
+ * prevent concurrent requests from clobbering each other's changes.
+ */
+export function withTrackerLock<T>(catalogPath: string, fn: () => Promise<T>): Promise<T> {
+  return withLock(trackerLockKey(catalogPath), fn)
+}
 
 function emptyTracker(catalogPath: string): TrackerFile {
   return {

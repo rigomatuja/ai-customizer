@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto'
 import type { Tool, TrackerOp } from '../../shared/schemas'
 import { ManifestSchema } from '../../shared/schemas'
 import { getCatalogPath } from '../catalog/paths'
-import { readTracker, writeTracker } from '../state/tracker'
+import { readTracker, withTrackerLock, writeTracker } from '../state/tracker'
 import { copyFile, hashFile } from './fs-utils'
 
 export interface ManagerStatus {
@@ -75,6 +75,10 @@ export interface InstallManagerResult {
 
 export async function installManager(tools: Tool[]): Promise<InstallManagerResult> {
   const catalogPath = getCatalogPath()
+  return withTrackerLock(catalogPath, () => installManagerImpl(catalogPath, tools))
+}
+
+async function installManagerImpl(catalogPath: string, tools: Tool[]): Promise<InstallManagerResult> {
   const manifest = await readManagerManifest(catalogPath)
   if (!manifest) throw new Error('manager manifest not found in catalog')
   const version = manifest.activeVersion
@@ -105,6 +109,22 @@ export async function installManager(tools: Tool[]): Promise<InstallManagerResul
         continue
       }
       const dst = managerDest(tool)
+      // Guard against symlink misconfiguration where src resolves to
+      // the same path as dst — copying onto itself would delete the
+      // source, and our rollback would restore stale content.
+      const { default: path } = await import('node:path')
+      const { default: fs } = await import('node:fs/promises')
+      const [srcReal, dstReal] = await Promise.all([
+        fs.realpath(src).catch(() => path.resolve(src)),
+        fs.realpath(dst).catch(() => path.resolve(dst)),
+      ])
+      if (srcReal === dstReal) {
+        skipped.push({
+          tool,
+          reason: `source and destination resolve to the same path (${srcReal}) — symlink misconfig?`,
+        })
+        continue
+      }
       await copyFile(src, dst)
       copiedPaths.push(dst)
 
@@ -162,6 +182,12 @@ export async function installManager(tools: Tool[]): Promise<InstallManagerResul
 
 export async function uninstallManager(): Promise<{ removed: Array<{ tool: Tool; path: string }> }> {
   const catalogPath = getCatalogPath()
+  return withTrackerLock(catalogPath, () => uninstallManagerImpl(catalogPath))
+}
+
+async function uninstallManagerImpl(
+  catalogPath: string,
+): Promise<{ removed: Array<{ tool: Tool; path: string }> }> {
   const tracker = await readTracker(catalogPath)
   const removed: Array<{ tool: Tool; path: string }> = []
 

@@ -1,7 +1,104 @@
 {
   "schemaVersion": "1.0",
   "targets": {
-    "CLAUDE.md": [],
+    "CLAUDE.md": [
+      {
+        "patchId": "p-8",
+        "version": "1.0.0",
+        "active": false,
+        "order": 0
+      },
+      {
+        "patchId": "p-9",
+        "version": "1.0.0",
+        "active": false,
+        "order": 1
+      },
+      {
+        "patchId": "p-10",
+        "version": "1.0.0",
+        "active": false,
+        "order": 2
+      },
+      {
+        "patchId": "p-1",
+        "version": "1.0.0",
+        "active": false,
+        "order": 3
+      },
+      {
+        "patchId": "p-4",
+        "version": "1.0.0",
+        "active": false,
+        "order": 4
+      },
+      {
+        "patchId": "p-2",
+        "version": "1.0.0",
+        "active": false,
+        "order": 5
+      },
+      {
+        "patchId": "p-3",
+        "version": "1.0.0",
+        "active": false,
+        "order": 6
+      },
+      {
+        "patchId": "p-7",
+        "version": "1.0.0",
+        "active": false,
+        "order": 7
+      },
+      {
+        "patchId": "p-6",
+        "version": "1.0.0",
+        "active": false,
+        "order": 8
+      },
+      {
+        "patchId": "p-5",
+        "version": "1.0.0",
+        "active": false,
+        "order": 9
+      },
+      {
+        "patchId": "s-1",
+        "version": "1.0.0",
+        "active": false,
+        "order": 10
+      },
+      {
+        "patchId": "s-2",
+        "version": "1.0.0",
+        "active": false,
+        "order": 11
+      },
+      {
+        "patchId": "s-3",
+        "version": "1.0.0",
+        "active": false,
+        "order": 12
+      },
+      {
+        "patchId": "par-a",
+        "version": "1.0.0",
+        "active": false,
+        "order": 13
+      },
+      {
+        "patchId": "par-b",
+        "version": "1.0.0",
+        "active": false,
+        "order": 14
+      },
+      {
+        "patchId": "par-c",
+        "version": "1.0.0",
+        "active": false,
+        "order": 15
+      }
+    ],
     "AGENTS.md": []
   }
 }

@@ -19,7 +19,7 @@ import type {
 } from '../../shared/types'
 import { log } from '../logging'
 import { appendHistory } from '../state/history'
-import { readTracker, writeTracker } from '../state/tracker'
+import { readTracker, withTrackerLock, writeTracker } from '../state/tracker'
 import { createBackup, restoreBackup } from './backup'
 import { copyFile, deleteFileAndCleanup, hashFile } from './fs-utils'
 import { regenerateHookRegistries } from './hook-registry'
@@ -65,6 +65,10 @@ function toolFromDest(destPath: string): Tool {
 }
 
 export async function executePlan(input: ExecutionInput): Promise<ApplyResponse> {
+  return withTrackerLock(input.catalogPath, () => executePlanImpl(input))
+}
+
+async function executePlanImpl(input: ExecutionInput): Promise<ApplyResponse> {
   const { plan, catalogPath, projectPaths, guide, projects } = input
   const startedAt = Date.now()
   const applyId = randomUUID()
@@ -296,15 +300,26 @@ export async function executePlan(input: ExecutionInput): Promise<ApplyResponse>
     // Stamp the tracker so the state reflects the last apply's outcome
     // even when it was a rollback. No op/patch changes survive here
     // (they were reversed) — we only update the result marker + timestamp.
+    // If the tracker write itself fails, log prominently so the user
+    // sees a warning in history.error AND stderr, because the tracker
+    // file may now be stale.
+    let trackerWriteError: string | null = null
     try {
       const trackerAfter = await readTracker(catalogPath)
       trackerAfter.lastApply = new Date().toISOString()
       trackerAfter.lastApplyResult = result
       await writeTracker(trackerAfter)
-    } catch {
-      // If we can't even write the tracker, swallow — history.json
-      // still records the failure.
+    } catch (trackerErr) {
+      trackerWriteError = trackerErr instanceof Error ? trackerErr.message : String(trackerErr)
+      log.error('apply', 'tracker write failed after rollback — tracker may be stale', {
+        applyId,
+        trackerWriteError,
+      })
     }
+
+    const finalError = trackerWriteError
+      ? `${errorMsg} (additionally: tracker write failed after rollback — ${trackerWriteError})`
+      : errorMsg
 
     await appendHistory({
       applyId,
@@ -315,7 +330,7 @@ export async function executePlan(input: ExecutionInput): Promise<ApplyResponse>
       uninstallCount,
       patchCount,
       backupPath,
-      error: errorMsg,
+      error: finalError,
       durationMs: duration,
     })
 
@@ -323,7 +338,7 @@ export async function executePlan(input: ExecutionInput): Promise<ApplyResponse>
       applyId,
       result,
       backupPath,
-      error: errorMsg,
+      error: finalError,
       durationMs: duration,
       installCount,
       upgradeCount,

@@ -1,7 +1,7 @@
 {
   "name": "ai-customizer-ui",
   "private": true,
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "module",
   "description": "Local UI for AI Customizer — catalog browser + installer",
   "scripts": {

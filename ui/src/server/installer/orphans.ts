@@ -4,7 +4,7 @@ import type { Tool } from '../../shared/schemas'
 import { readGuide, writeGuide } from '../catalog/guide'
 import type { LoadedCatalog } from '../catalog/loader'
 import { getCatalogPath } from '../catalog/paths'
-import { readTracker, writeTracker } from '../state/tracker'
+import { readTracker, withTrackerLock, writeTracker } from '../state/tracker'
 import { deleteFileAndCleanup } from './fs-utils'
 
 export type OrphanKind = 'skill-or-agent' | 'patch'
@@ -101,6 +101,18 @@ export async function forceUninstallOrphan(
   notFound: boolean
 }> {
   const catalogPath = getCatalogPath()
+  return withTrackerLock(catalogPath, () => forceUninstallOrphanImpl(catalogPath, params))
+}
+
+async function forceUninstallOrphanImpl(
+  catalogPath: string,
+  params: ForceUninstallInput,
+): Promise<{
+  deletedPaths: string[]
+  failedPaths: Array<{ path: string; error: string }>
+  removedGuideEntries: number
+  notFound: boolean
+}> {
   const tracker = await readTracker(catalogPath)
   const matching = tracker.operations.filter(
     (o) => o.customType === params.customType && o.customId === params.customId,
@@ -188,6 +200,14 @@ export async function forceUninstallPatchOrphan(
   options: { force?: boolean } = {},
 ): Promise<{ restored: boolean; removedGuideEntries: number; notFound: boolean }> {
   const catalogPath = getCatalogPath()
+  return withTrackerLock(catalogPath, () => forceUninstallPatchOrphanImpl(catalogPath, target, options))
+}
+
+async function forceUninstallPatchOrphanImpl(
+  catalogPath: string,
+  target: 'CLAUDE.md' | 'AGENTS.md',
+  options: { force?: boolean },
+): Promise<{ restored: boolean; removedGuideEntries: number; notFound: boolean }> {
   const tracker = await readTracker(catalogPath)
   const entry = tracker.patches.find((p) => p.target === target)
   if (!entry) return { restored: false, removedGuideEntries: 0, notFound: true }

@@ -20,7 +20,12 @@ interface HookRegistryEntry {
   version: string
   tool: Tool
   scope: 'global' | 'project'
-  projectPath?: string
+  /**
+   * `null` for global hooks (explicit), a project path for project
+   * hooks, undefined only transiently during groupByScope before the
+   * enrichment step.
+   */
+  projectPath?: string | null
   installedPath: string
   triggers: Array<{ type: string; target: string }>
   onFail?: 'halt' | 'warn' | 'continue'
@@ -84,7 +89,9 @@ async function collectHooksFromTracker(
       version: op.version,
       tool: op.tool,
       scope: op.target.scope,
-      projectPath: undefined,
+      // Explicit null for global (vs undefined) so consumers can
+      // distinguish "global hook" from "missing projectPath field".
+      projectPath: op.target.scope === 'global' ? null : undefined,
       installedPath: op.toPath,
       triggers: manifest.hook.triggers,
       onFail: manifest.hook.onFail,
