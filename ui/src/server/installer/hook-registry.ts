@@ -5,7 +5,6 @@ import type {
   InstallableType,
   Manifest,
   ProjectEntry,
-  TargetScope,
   Tool,
   TrackerFile,
   TrackerOp,
@@ -193,6 +192,3 @@ export async function readGlobalHookRegistry(): Promise<HookRegistryFile> {
 }
 
 export type { HookRegistryEntry, HookRegistryFile }
-
-// Silence unused-import warning for TargetScope
-export type _TargetScope = TargetScope

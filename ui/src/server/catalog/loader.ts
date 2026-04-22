@@ -277,5 +277,3 @@ export async function loadAllManifests(catalogRoot: string): Promise<Map<string,
   return map
 }
 
-// Type guard to silence unused manifest import at module top when not needed
-export type _ManifestType = Manifest

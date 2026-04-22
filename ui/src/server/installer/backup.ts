@@ -79,13 +79,27 @@ export async function restoreBackup(backupPath: string): Promise<void> {
 export async function listBackups(): Promise<Array<{ name: string; path: string; sizeBytes: number; createdAt: string }>> {
   const p = userConfigPaths()
   if (!existsSync(p.backups)) return []
-  const entries = await fs.readdir(p.backups)
+  let entries: string[]
+  try {
+    entries = await fs.readdir(p.backups)
+  } catch (err) {
+    console.warn(
+      `[ai-customizer] listBackups: cannot read ${p.backups}: ${err instanceof Error ? err.message : err}`,
+    )
+    return []
+  }
   const tars = entries.filter((n) => n.endsWith('.tar.gz')).sort().reverse()
   const result: Array<{ name: string; path: string; sizeBytes: number; createdAt: string }> = []
   for (const name of tars) {
     const full = path.join(p.backups, name)
-    const stat = await fs.stat(full)
-    result.push({ name, path: full, sizeBytes: stat.size, createdAt: stat.mtime.toISOString() })
+    try {
+      const stat = await fs.stat(full)
+      result.push({ name, path: full, sizeBytes: stat.size, createdAt: stat.mtime.toISOString() })
+    } catch (err) {
+      console.warn(
+        `[ai-customizer] listBackups: skipping inaccessible backup ${name}: ${err instanceof Error ? err.message : err}`,
+      )
+    }
   }
   return result
 }

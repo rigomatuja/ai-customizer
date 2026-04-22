@@ -7,9 +7,9 @@ import type {
   ProjectEntry,
   TargetScope,
   Tool,
-  TriggersFile,
   TrackerFile,
   TrackerOp,
+  TriggersFile,
 } from '../../shared/schemas'
 import type {
   PhysicalOp,
@@ -42,20 +42,6 @@ interface PlannerInput {
   guide: ApplicationGuide
   triggersFile: TriggersFile
   manifests: Map<string, Manifest>
-}
-
-function manifestById(
-  catalog: LoadedCatalog,
-  customType: InstallableType,
-  customId: string,
-): Manifest | null {
-  const summary = catalog.customs.find((c) => c.type === customType && c.id === customId)
-  if (!summary) return null
-  // Re-load not needed here — the summary doesn't carry the manifest.
-  // Planner needs the manifest for activeVersion. Loader issues guarantee
-  // that the summary has activeVersion if valid.
-  // We reconstruct a minimal manifest-ish record using summary data.
-  return null // planner falls back to summary data
 }
 
 function summaryFor(
@@ -416,6 +402,3 @@ export async function computePlan(input: PlannerInput): Promise<Plan> {
     currentInstalledCount: installed.size,
   }
 }
-
-// Exported to silence unused import warning if any
-export { manifestById as _manifestById }

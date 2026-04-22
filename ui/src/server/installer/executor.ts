@@ -276,6 +276,9 @@ export async function executePlan(input: ExecutionInput): Promise<ApplyResponse>
     const duration = Date.now() - startedAt
     const errorMsg = err instanceof Error ? err.message : String(err)
     const result = rollbackFailed ? 'rollback-failed' : 'rolled-back'
+    console.error(
+      `[ai-customizer] Apply failed: result=${result} installs=${installCount} upgrades=${upgradeCount} uninstalls=${uninstallCount} patches=${patchCount} duration=${duration}ms error="${errorMsg}"`,
+    )
     await appendHistory({
       applyId,
       timestamp: new Date().toISOString(),
