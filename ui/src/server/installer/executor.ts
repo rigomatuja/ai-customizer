@@ -5,6 +5,7 @@ import type {
   ApplicationGuide,
   InstallableType,
   PatchTrackerOp,
+  ProjectEntry,
   TargetScope,
   Tool,
   TrackerOp,
@@ -20,6 +21,7 @@ import { appendHistory } from '../state/history'
 import { readTracker, writeTracker } from '../state/tracker'
 import { createBackup, restoreBackup } from './backup'
 import { copyFile, deleteFileAndCleanup, hashFile } from './fs-utils'
+import { regenerateHookRegistries } from './hook-registry'
 import { executePatchApply } from './patches'
 
 interface ExecutionInput {
@@ -27,6 +29,7 @@ interface ExecutionInput {
   catalogPath: string
   projectPaths: string[]
   guide: ApplicationGuide
+  projects: ProjectEntry[]
 }
 
 interface ExecutedPhysical {
@@ -61,7 +64,7 @@ function toolFromDest(destPath: string): Tool {
 }
 
 export async function executePlan(input: ExecutionInput): Promise<ApplyResponse> {
-  const { plan, catalogPath, projectPaths, guide } = input
+  const { plan, catalogPath, projectPaths, guide, projects } = input
   const startedAt = Date.now()
   const applyId = randomUUID()
   const executed: ExecutedPhysical[] = []
@@ -86,6 +89,10 @@ export async function executePlan(input: ExecutionInput): Promise<ApplyResponse>
   }
 
   if (plan.operations.length === 0 && plan.patchOperations.length === 0) {
+    // Still regenerate the hook registry so orchestrators see the
+    // current hook set even when Apply had nothing else to do.
+    const tracker = await readTracker(catalogPath)
+    await regenerateHookRegistries({ catalogRoot: catalogPath, tracker, projects }).catch(() => undefined)
     return {
       applyId,
       result: 'success',
@@ -183,6 +190,8 @@ export async function executePlan(input: ExecutionInput): Promise<ApplyResponse>
     tracker.catalogPath = catalogPath
     tracker.lastApply = new Date().toISOString()
     await writeTracker(tracker)
+
+    await regenerateHookRegistries({ catalogRoot: catalogPath, tracker, projects }).catch(() => undefined)
 
     const duration = Date.now() - startedAt
     await appendHistory({

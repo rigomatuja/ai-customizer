@@ -28,6 +28,9 @@ export function Layout({ children }: LayoutProps) {
           <li>
             <NavLink to="/history">History</NavLink>
           </li>
+          <li>
+            <NavLink to="/triggers">Triggers</NavLink>
+          </li>
           <li className="app-nav-right">
             <NavLink to="/settings">Settings</NavLink>
           </li>

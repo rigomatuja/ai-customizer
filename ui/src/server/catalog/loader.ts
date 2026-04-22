@@ -247,5 +247,35 @@ export async function loadCustomDetail(
   return detail
 }
 
+/**
+ * Load all manifests in the catalog keyed by "{type}:{id}".
+ * Returns only manifests that parse successfully.
+ */
+export async function loadAllManifests(catalogRoot: string): Promise<Map<string, Manifest>> {
+  const p = catalogPaths(catalogRoot)
+  const map = new Map<string, Manifest>()
+  const dirs: Array<{ dir: string; type: CustomType }> = [
+    { dir: p.customizations.skills, type: 'skill' },
+    { dir: p.customizations.agents, type: 'agent' },
+    { dir: p.customizations.patches, type: 'patch' },
+  ]
+  for (const { dir, type } of dirs) {
+    const ids = await safeReaddir(dir)
+    for (const id of ids) {
+      const manifestPath = path.join(dir, id, 'manifest.json')
+      if (!existsSync(manifestPath)) continue
+      try {
+        const raw = await fs.readFile(manifestPath, 'utf8')
+        const parsed = JSON.parse(raw) as unknown
+        const result = ManifestSchema.safeParse(parsed)
+        if (result.success) map.set(`${type}:${id}`, result.data)
+      } catch {
+        // skip
+      }
+    }
+  }
+  return map
+}
+
 // Type guard to silence unused manifest import at module top when not needed
 export type _ManifestType = Manifest

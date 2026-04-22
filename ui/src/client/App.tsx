@@ -8,6 +8,7 @@ import { CustomDetail } from './pages/CustomDetail'
 import { History } from './pages/History'
 import { Home } from './pages/Home'
 import { Settings } from './pages/Settings'
+import { Triggers } from './pages/Triggers'
 import { Welcome } from './pages/Welcome'
 
 export function App() {
@@ -60,6 +61,7 @@ export function App() {
         <Route path="/application-guide" element={<ApplicationGuide />} />
         <Route path="/apply" element={<Apply />} />
         <Route path="/history" element={<History />} />
+        <Route path="/triggers" element={<Triggers />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

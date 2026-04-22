@@ -7,6 +7,7 @@ import type {
   ProjectEntry,
   TargetScope,
   Tool,
+  TriggersFile,
   TrackerFile,
   TrackerOp,
 } from '../../shared/schemas'
@@ -18,6 +19,7 @@ import type {
   PlanPatchOp,
   PlanWarning,
 } from '../../shared/types'
+import { isKnownTrigger } from '../catalog/triggers'
 import type { LoadedCatalog } from '../catalog/loader'
 import { resolveInstallPath } from './paths'
 import { activeEntriesFor, activeGuideHashFor, globalMasterPath } from './patches'
@@ -29,6 +31,8 @@ interface PlannerInput {
   tracker: TrackerFile
   projects: ProjectEntry[]
   guide: ApplicationGuide
+  triggersFile: TriggersFile
+  manifests: Map<string, Manifest>
 }
 
 function manifestById(
@@ -136,11 +140,29 @@ function trackerInstallsFor(tracker: TrackerFile) {
 }
 
 export function computePlan(input: PlannerInput): Plan {
-  const { catalogPath, catalog, installations, tracker, projects, guide } = input
+  const { catalogPath, catalog, installations, tracker, projects, guide, triggersFile, manifests } = input
   const operations: PlanOperation[] = []
   const patchOperations: PlanPatchOp[] = []
   const warnings: PlanWarning[] = []
   const blockers: PlanBlocker[] = []
+
+  // Unknown-trigger warnings for hooks among active installations.
+  for (const inst of installations) {
+    const manifest = manifests.get(`${inst.customType}:${inst.customId}`)
+    if (!manifest) continue
+    if (manifest.type === 'patch') continue
+    if (!manifest.hook) continue
+    for (const trigger of manifest.hook.triggers) {
+      const target = `${trigger.type}:${trigger.target}`
+      if (!isKnownTrigger(triggersFile, target)) {
+        warnings.push({
+          code: 'unknown-trigger',
+          message: `${inst.customType}:${inst.customId} declares unknown trigger "${target}". Not in the catalog vocabulary.`,
+          customId: inst.customId,
+        })
+      }
+    }
+  }
 
   const desired = desiredInstallsFor(installations)
   const installed = trackerInstallsFor(tracker)

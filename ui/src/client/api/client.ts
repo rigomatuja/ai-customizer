@@ -123,4 +123,29 @@ export const api = {
       `/api/guide/${encodeURIComponent(target)}/reorder`,
       { patchIds },
     ),
+
+  triggers: () => request<import('../../shared/schemas').TriggersFile>('/api/triggers'),
+  addTrigger: (trigger: string) =>
+    jsonPost<import('../../shared/schemas').TriggersFile>('/api/triggers', { trigger }),
+  removeTrigger: (trigger: string) =>
+    jsonDelete<import('../../shared/schemas').TriggersFile>(
+      `/api/triggers?trigger=${encodeURIComponent(trigger)}`,
+    ),
+
+  hookRegistry: () =>
+    request<{
+      schemaVersion: string
+      generatedAt: string
+      hooks: Array<{
+        customId: string
+        customType: 'skill' | 'agent'
+        version: string
+        tool: 'claude' | 'opencode'
+        scope: 'global' | 'project'
+        projectPath?: string
+        installedPath: string
+        triggers: Array<{ type: string; target: string }>
+        onFail?: 'halt' | 'warn' | 'continue'
+      }>
+    }>('/api/hook-registry'),
 }
