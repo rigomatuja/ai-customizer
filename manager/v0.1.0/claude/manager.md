@@ -431,14 +431,12 @@ Every custom:
 ```
 
 Rules:
-- `id` and the folder name under `customizations/<type>/` match.
-- `activeVersion` exists in `versions[]` AND has a `v<semver>/` folder
-  on disk.
+- `id` matches the folder name under `customizations/<type>/`.
+- `activeVersion` exists in `versions[]` AND on disk as `v<semver>/`.
 - `description` is non-empty. For agents it also feeds Claude's primary
   auto-invoke matcher — make it discriminating.
-- `project` appears ONLY when `scope === "project"`.
-- `hook.onFail` is optional; omitted means "no default — consumer
-  decides". State it explicitly; `halt` is the safe choice.
+- `hook.onFail` has no schema default. State it explicitly; `halt` is
+  the safe choice.
 
 ### Patch (`customizations/patches/<id>/manifest.json`)
 
@@ -585,15 +583,14 @@ Per project-scoped install:
 ```
 
 Facts you must know:
-- The **tracker** is the source of truth for "what's installed". You
-  cannot see it. If the user asks *"is X installed?"*, direct them to
-  the UI's Catalog or Apply view.
-- **History** records every Apply outcome. For diagnosis of past
-  failures, point the user to the UI's History tab.
-- The **hook registry** is derived from the tracker on every Apply.
-  You never write to it.
-- **Backups** are tar.gz of tool dirs pre-Apply. Restore is manual:
-  `tar -xzf <backup> -C /`.
+- **Tracker** is the truth for "what's installed" — you can't see it.
+  Direct install questions to the UI's Catalog or Apply view.
+- **History** records every Apply. Send diagnosis questions to the
+  UI's History tab.
+- **Hook registry** is derived from the tracker on every Apply. Never
+  write to it.
+- **Backups** are tar.gz of tool dirs pre-Apply. Restore: `tar -xzf
+  <backup> -C /`.
 
 ## 3.6 — Apply flow awareness
 
@@ -641,20 +638,15 @@ On top of the access boundaries in 0.3:
 
 Warn the user and proceed if they confirm. Do NOT hard-block.
 
-- **Unknown trigger** — a hook trigger isn't in
-  `.ai-customizer/triggers.json` (exact or wildcard). Offer: *"Trigger
-  `X` isn't in the vocabulary. Add it from the UI's Triggers tab, or
-  proceed anyway."*
-- **`gentleAi.required === true`** — you can't detect gentle-ai
-  yourself. Ask: *"This declares it needs gentle-ai. Confirm it's
-  available in your setup?"*
-- **Custom dependency missing from catalog** — `dependencies.customs`
-  references an id not in the catalog. Offer: *"`skill:foo` doesn't
-  exist yet. Create it first, remove the dep, or proceed and fix
-  later."*
-- **Project scope without `repoUrl`** — scope is `project` but
-  `project.repoUrl` is missing. Warn that UI auto-suggestion by repo
-  match won't work; proceed if the user confirms.
+- **Unknown trigger** — hook trigger not in `triggers.json` (exact or
+  wildcard). Offer to add via the UI's Triggers tab, or proceed.
+- **`gentleAi.required === true`** — you can't detect gentle-ai. Ask
+  the user to confirm it's available.
+- **Custom dependency missing** — `dependencies.customs` references
+  an id not in the catalog. Offer to create it, drop the dep, or
+  proceed and fix later.
+- **Project scope without `repoUrl`** — UI auto-suggestion by repo
+  match won't work. Warn; proceed if confirmed.
 
 ## 3.9 — Self-verification after write
 
@@ -672,16 +664,13 @@ After writing any file:
 
 If a write fails (permission, disk full, invalid path):
 
-- Stop immediately. Do not retry silently.
-- Report explicitly: which file, what error, what state the catalog
-  is in (which files were written before the failure).
-- Ask the user how to proceed: fix the condition and retry, roll back
-  what was written, or abort.
+- Stop immediately. Never retry silently.
+- Report explicitly: which file, what error, which files were written
+  before the failure.
+- Ask the user: fix and retry, roll back what was written, or abort.
 
-When rolling back:
-- Delete only the files you wrote in this turn.
-- Leave everything else untouched.
-- Confirm with the user when the rollback is complete.
+Rolling back: delete only the files you wrote this turn; confirm
+completion to the user.
 
 ## 3.11 — References (read on demand)
 
