@@ -12,15 +12,60 @@ writes the files for you when you ask.
 
 ## Contents
 
-1. [Requirements](#requirements)
-2. [Install](#install)
-3. [First run](#first-run)
-4. [Daily workflow](#daily-workflow)
-5. [Features and disk layout](#features-and-disk-layout)
-6. [Concepts reference](#concepts-reference)
-7. [Scripts and env vars](#scripts-and-env-vars)
-8. [Troubleshooting](#troubleshooting)
-9. [Not in v1](#not-in-v1)
+1. [How it fits together](#how-it-fits-together)
+2. [Requirements](#requirements)
+3. [Install](#install)
+4. [First run](#first-run)
+5. [Hello world](#hello-world)
+6. [Daily workflow](#daily-workflow)
+7. [Features and disk layout](#features-and-disk-layout)
+8. [Concepts reference](#concepts-reference)
+9. [Scripts and env vars](#scripts-and-env-vars)
+10. [Troubleshooting](#troubleshooting)
+11. [Not in v1](#not-in-v1)
+
+---
+
+## How it fits together
+
+Three separate locations on your disk, three clear responsibilities:
+
+```
+┌──────────────────────────────┐    ┌──────────────────────────────┐    ┌──────────────────────────────┐
+│  CATALOG  (this repo)        │    │  STATE  (one per machine)    │    │  TOOLS  (where they read)    │
+│                              │    │                              │    │                              │
+│  Where customs are AUTHORED. │    │  Where the UI tracks what    │    │  Where Claude and Opencode   │
+│  Version-controlled by git.  │    │  is installed + history +    │    │  actually read their files   │
+│  Safe to share or fork.      │    │  backups + registries.       │    │  from at runtime.            │
+│                              │    │                              │    │                              │
+│  <your-catalog>/             │    │  ~/.config/ai-customizer/    │    │  ~/.claude/                  │
+│    customizations/           │    │    config.json               │    │    skills/<id>/SKILL.md      │
+│    manager/                  │    │    install-state.json        │    │    agents/<id>.md            │
+│    application-guide.json    │    │    history.json              │    │    CLAUDE.md (+.original)    │
+│    .ai-customizer/           │    │    hook-registry.json        │    │                              │
+│    ui/                       │    │    projects.json             │    │  ~/.config/opencode/         │
+│                              │    │    backups/*.tar.gz          │    │    skills/<id>/SKILL.md      │
+│                              │    │    .lock                     │    │    agent/<id>.md             │
+│                              │    │                              │    │    AGENTS.md (+.original)    │
+└──────────────────────────────┘    └──────────────────────────────┘    └──────────────────────────────┘
+            ▲                                    ▲                                    ▲
+            │ writes                             │ writes                             │ writes
+            │                                    │                                    │
+      ┌─────┴─────┐                        ┌─────┴─────┐                        ┌─────┴─────┐
+      │  Manager  │                        │    UI     │                        │    UI     │
+      │  (agent)  │                        │           │                        │  (Apply)  │
+      └───────────┘                        └───────────┘                        └───────────┘
+```
+
+**Who writes what**:
+- **Manager** (runs inside Claude/Opencode) → writes ONLY the catalog (creates, improves, versions customs).
+- **UI** → writes ONLY the state dir and the tool dirs. Never touches custom content in the catalog except for toggling active flags in `application-guide.json` and `manifest.json.activeVersion`.
+- **You** → anything you want. Edit the catalog directly if you prefer. Everything else is orchestration on top.
+
+**Key facts**:
+- The **catalog** is a git repo. You own every clone. Each clone is independent.
+- The **state dir** is per machine, shared across every catalog on it. Switching catalogs reuses the state but points at new content.
+- The **tool dirs** are what Claude / Opencode read. The UI is the only thing that should write to them on your behalf.
 
 ---
 
@@ -42,12 +87,17 @@ semantics differ; see [Not in v1](#not-in-v1)).
 
 ### 1. Clone this repo
 
-It IS your catalog. Every clone is a separate catalog. You own it.
+It IS your catalog. Every clone is a separate, independent catalog. The
+folder name and location are yours — pick whatever fits your setup.
 
 ```bash
 git clone <this-repo-url> my-catalog
 cd my-catalog
 ```
+
+After cloning, the catalog root is `<wherever-you-cloned>/my-catalog/`.
+Remember that path — the UI shows it in Settings and the manager uses it
+when it writes files.
 
 ### 2. Install the UI
 
@@ -76,7 +126,7 @@ A 2-step wizard walks you through setup.
 
 ### Step 1 — Initialize
 
-Creates `~/.config/ai-customizer/` with:
+Creates `~/.config/ai-customizer/` (the **state dir**) with:
 
 | File | Purpose |
 |---|---|
@@ -89,6 +139,12 @@ Creates `~/.config/ai-customizer/` with:
 | `.lock` | single-instance lock file |
 
 Also detects `claude` and `opencode` on `$PATH` + their config dirs.
+
+> **Note**: the state dir is **per machine, not per catalog**. Every clone
+> you run on the same machine shares these files. If you switch catalogs,
+> the UI reuses your tracker/history but points at new customs — so prior
+> installs from the previous catalog will appear as orphans until you
+> uninstall them. Most users keep one catalog per machine.
 
 ### Step 2 — Install the manager
 
@@ -104,6 +160,85 @@ On disk after this step:
 ```
 
 You can skip this step and install it later from **Settings → Manager**.
+
+---
+
+## Hello world
+
+The fastest way to prove the loop works end-to-end, without the manager:
+
+### 1. Hand-author a skill in the catalog
+
+From your catalog root:
+
+```bash
+mkdir -p customizations/skills/hello/v1.0.0/claude
+cat > customizations/skills/hello/manifest.json <<'EOF'
+{
+  "id": "hello",
+  "name": "Hello",
+  "description": "Says hi.",
+  "type": "skill",
+  "category": "demo",
+  "scope": "global",
+  "versions": [
+    { "version": "1.0.0", "createdAt": "2026-04-22T00:00:00Z", "changelog": "init" }
+  ],
+  "activeVersion": "1.0.0"
+}
+EOF
+cat > customizations/skills/hello/v1.0.0/claude/SKILL.md <<'EOF'
+# Hello skill
+
+When the user says "hi", respond with "hello, world".
+EOF
+```
+
+### 2. See it in the UI
+
+Refresh the **Catalog** tab in your browser. `hello` appears with badges
+`skill`, `global`, `claude`.
+
+### 3. Activate it
+
+1. Click the card.
+2. **Active** toggle → on.
+3. **Target** → Global.
+4. **Tools** → Claude.
+5. **Save**.
+
+### 4. Apply
+
+**Apply** tab → click **Apply plan**. The plan shows:
+
+```
+Skill / agent operations (1)
+  [install] skill:hello v1.0.0  target: global  tools: claude
+    copy → ~/.claude/skills/hello/SKILL.md
+```
+
+Click **Apply plan**. Result: `success`.
+
+### 5. Verify on disk
+
+```bash
+cat ~/.claude/skills/hello/SKILL.md
+# Hello skill
+# When the user says "hi", respond with "hello, world".
+```
+
+### 6. Uninstall
+
+Back in **Catalog → hello detail**, toggle **Active** off → **Save** →
+**Apply** tab → **Apply plan**. The plan now shows an `[uninstall]` op.
+After Apply, the file is gone:
+
+```bash
+ls ~/.claude/skills/hello/
+# ls: cannot access '~/.claude/skills/hello/': No such file or directory
+```
+
+The tracker and history both reflect the round-trip.
 
 ---
 
@@ -248,18 +383,63 @@ customizations/patches/<id>/
 ~/.config/opencode/AGENTS.md.original         # baseline
 ```
 
-The `.original` is a one-time snapshot of the master at the moment the first
-patch was applied. Every future Apply composes from `.original`, so removing
-all patches restores the master exactly.
+**`.original` lifecycle** — this is the core of idempotent patches:
 
-**Application Guide** (catalog root):
+- **Created**: on the first Apply that installs ANY patch for a master file,
+  the installer snapshots the master as `<master>.original`. The snapshot
+  captures whatever content was there (default Claude/Opencode content, or
+  your prior edits).
+- **Reused**: every subsequent Apply on that master composes patches
+  starting from `.original`, never from the live master. This means two
+  patches produce the same result regardless of the order patches were
+  enabled/disabled in between.
+- **Never auto-deleted**: removing all patches restores the master to
+  `.original` content, but the `.original` file stays on disk. This keeps
+  future patch composition deterministic.
+- **Manually deletable**: you can delete `.original` yourself to "rebase"
+  onto a new baseline (for example, after a Claude update changed the
+  default master). The next patch install will snapshot the new current
+  content as the fresh baseline.
+
+### Application Guide
+
+The recipe that tells the installer which patches to apply to which master,
+in which order. Lives in the catalog:
 
 ```
-application-guide.json           # { "targets": { "CLAUDE.md": [...], "AGENTS.md": [...] } }
+application-guide.json
 ```
 
-Each entry: `{ patchId, version, active, order }`. The UI edits this file
-when you reorder, toggle, or remove entries in the **Guide** tab.
+Shape:
+
+```json
+{
+  "schemaVersion": "1.0",
+  "targets": {
+    "CLAUDE.md": [
+      { "patchId": "strict-testing", "version": "1.2.0", "active": true,  "order": 0 },
+      { "patchId": "voseo-off",       "version": "2.0.1", "active": false, "order": 1 }
+    ],
+    "AGENTS.md": []
+  }
+}
+```
+
+**How entries land in the guide**: manually (you or the manager adds a
+patch via "Add from catalog" in the Guide tab) or implicitly when you
+add a patch and toggle it on.
+
+**The Guide tab** of the UI lets you:
+- Reorder entries with ↑ / ↓ buttons — order matters when two patches
+  touch overlapping regions.
+- Toggle `active` per entry — inactive entries stay in the guide but
+  don't get applied.
+- Change the `version` referenced by each entry (to install a different
+  version of the same patch).
+- Remove entries entirely.
+
+Every change to the guide is a write to `application-guide.json` in the
+catalog. It does NOT touch the master file until you run Apply.
 
 ### Hooks
 
@@ -305,8 +485,23 @@ Example entry:
 <project>/.atl/hook-registry.json
 ```
 
-The registry is regenerated atomically on every Apply. Orchestrator agents
-are expected to read it and fire hooks at matching phases or events.
+The registry is regenerated atomically on every Apply.
+
+**Who reads it**: any agent that wants to fire hooks — typically an
+orchestrator you install alongside (for example, the gentle-ai SDD
+orchestrator reads both the project registry at `<project>/.atl/hook-registry.json`
+and the global one). **The UI itself does not fire hooks** — it only
+maintains the registry as a side-effect of Apply. Firing is 100% the
+consumer's job.
+
+A consumer typically:
+1. Walks up from cwd looking for `<project>/.atl/hook-registry.json`.
+2. Reads `~/.config/ai-customizer/hook-registry.json` as well.
+3. Merges both lists (project wins on conflict).
+4. Filters by `triggers[].type` and `triggers[].target` for the event
+   it is about to emit.
+5. Invokes the matching skill/agent (at `installedPath`) with its own
+   delegation mechanism.
 
 **Trigger vocabulary** lives in the catalog:
 
@@ -315,7 +510,8 @@ are expected to read it and fire hooks at matching phases or events.
 ```
 
 Editable from the **Triggers** tab. The planner warns on unknown triggers in
-a manifest (non-blocking).
+a manifest (non-blocking). Wildcards are supported: `agent-event:*:complete`
+matches `agent-event:sdd-apply:complete`.
 
 ### Projects
 
@@ -498,6 +694,33 @@ repo, or your catalog path is aliased through a symlink. Unsymlink it.
 Default human-readable to stderr. Set `AIC_LOG_JSON=1` for structured
 line-delimited JSON that log aggregators can parse.
 
+**How do I reset the state dir?**
+Stop the UI. Delete `~/.config/ai-customizer/` (optionally keep
+`backups/` first). Start the UI again → the wizard runs fresh. Any tool
+files that were installed stay on disk but become invisible to the UI
+(they'd show up as orphans if you re-register the same catalog).
+
+**How do I start over with a fresh catalog?**
+The safest order:
+1. In the UI, uninstall all active customs (toggle all off → Apply).
+2. Uninstall the manager (Settings → Manager → Uninstall).
+3. Close the UI.
+4. `rm -rf ~/.config/ai-customizer/` (or just `install-state.json` +
+   `history.json` if you want to keep backups).
+5. Clone a fresh catalog somewhere else, `cd ui && npm install && npm run dev`,
+   run the wizard. New state dir, new catalog, no leftovers.
+
+**How do I update the manager after a template pull?**
+After `git pull` in the catalog, the manager folder may have a new
+version. Settings → Manager shows a version mismatch indicator. Click
+**Reinstall** to overwrite the old manager files with the new version.
+Atomic: snapshots prior content, rolls back on any per-tool copy failure.
+
+**Where are past Apply backups?**
+`~/.config/ai-customizer/backups/apply-YYYYMMDD-HHMMSS.tar.gz`. Last 10
+kept, FIFO. To restore: `tar -xzf <backup> -C /` restores the captured
+tool dirs to their absolute paths.
+
 ---
 
 ## Not in v1
@@ -513,6 +736,8 @@ Deferred features, documented so you know the shape of v2:
 - Canonical template URL / "factory reset from origin".
 - Project-scoped patches (patches are global-only today).
 - Windows support.
+- Two UIs / two catalogs active simultaneously (lock file prevents; you
+  can only run one UI instance at a time per machine).
 
 See `docs/DESIGN.md` §12 for the full list and rationale.
 
