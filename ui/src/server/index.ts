@@ -20,7 +20,7 @@ app.get('/api/health', (c) =>
   c.json({
     ok: true,
     service: 'ai-customizer',
-    version: '1.0.7',
+    version: '1.1.0',
     milestone: 'M8',
   }),
 )

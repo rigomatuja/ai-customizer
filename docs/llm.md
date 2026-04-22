@@ -186,7 +186,7 @@ Opencode. The code handles these asymmetries explicitly — never paper over the
 - **Platforms**: Linux + macOS. Windows is not supported (path + rename
   semantics; `tar` differences).
 
-See `ui/package.json` for exact versions. Current release: **v1.0.7** (bumped in
+See `ui/package.json` for exact versions. Current release: **v1.1.0** (bumped in
 `ui/package.json.version` and `ui/src/server/index.ts` `/api/health.version`).
 
 ---
@@ -213,7 +213,7 @@ See `ui/package.json` for exact versions. Current release: **v1.0.7** (bumped in
 │       └── vX.Y.Z/{claude,opencode}/{before,after}.md
 ├── manager/                         # the manager agent (shipped with the template, NOT under customizations/)
 │   ├── manifest.json                # { id: "manager", type: "agent", activeVersion }
-│   └── v0.1.0/
+│   └── v0.2.0/
 │       ├── claude/manager.md        # Claude subagent
 │       ├── claude/slash-command.md  # /manager slash command (Claude-only; v1.0.6+)
 │       └── opencode/manager.md      # Opencode primary agent (YAML frontmatter)
@@ -801,10 +801,35 @@ No global store. Pages use `useAsync(() => api.xxx())` hooks that return
 - **type**: `agent`
 - **category**: `system`
 - **scope**: `global`
-- **activeVersion**: see `manager/manifest.json`. Currently `0.1.0`.
+- **activeVersion**: see `manager/manifest.json`. Currently `0.2.0`.
 
 Not under `customizations/`. Factory-protected. Installed/uninstalled only
 through `/api/manager/*`.
+
+### 10.4 v0.2.0 protocol additions (over v0.1.0)
+
+- **Project inference from cwd (body §3.8)**: manager runs `pwd` +
+  `git config --get remote.origin.url` at boot and, when the user picks
+  `scope: project`, proposes `{ name, path, repoUrl }` as a suggestion.
+  User confirms or corrects. Never commits silently.
+- **Patch auto-detection (body §3.4)**: manager reads the tool's
+  baseline (`<master>.original` preferred, fallback to current master
+  on first patch). Proposes candidate regions from the baseline.
+  Blocking validations for missing master/baseline states. The manager
+  NEVER asks the user to paste a before-region anymore.
+- **Gentle-ai detection (body §3.9)**: on-demand scan of `CLAUDE.md`
+  and `AGENTS.md` for `<!-- gentle-ai:<tag> -->` markers. Same regex
+  as the UI (`[a-zA-Z0-9_-]+`). Refuses to wire
+  `dependencies.gentleAi` when zero tags found. Asks whether each
+  referenced tag is a skill or an agent before emitting
+  `dependencies.customs` entries.
+- **Guided exploration (body §0.6)**: no subagent delegation. Manager
+  does its own reads using Read/Glob/Grep. Always scopes with the
+  user before broad scans. Read-only outside its write scope.
+- **Agent creation checklist (body §2.10)**: when `op = create` AND
+  `type = agent`, walks 9 extra dimensions (triggers, role, scope,
+  procedure, tools, delegation, input, output, failures,
+  anti-patterns) one at a time before Show-before-write.
 
 ### 10.2 Claude-only slash command (v1.0.6+)
 
@@ -820,7 +845,7 @@ slash commands, so its install is a single file.
 **Slash-command pattern (general)**. If you need to ship a slash command for
 something other than the manager, the pattern is:
 - A markdown file at `~/.claude/commands/<name>.md` with YAML frontmatter
-  (see `manager/v0.1.0/claude/slash-command.md` for the canonical example).
+  (see `manager/v0.2.0/claude/slash-command.md` for the canonical example).
 - The body typically delegates to a subagent or runs instructions in the
   primary — it's just a prompt template Claude invokes on `/<name>`.
 - Installation goes through the same `ManagerAsset`-style 2-asset atomic
@@ -841,7 +866,7 @@ or edit a custom:
 5. **Content templates** — use the shipped templates for SKILL.md / agent.md /
    before.md+after.md shapes.
 
-Read `manager/v0.1.0/claude/manager.md` for the full current text. DO NOT
+Read `manager/v0.2.0/claude/manager.md` for the full current text. DO NOT
 hand-edit this in the catalog; bump a new version folder instead.
 
 ---
@@ -883,12 +908,12 @@ at new content — prior installs surface as orphans until cleaned up.
 
 ## 12. Release and versioning
 
-Current version: **v1.0.7**. Semver.
+Current version: **v1.1.0**. Semver.
 
 **Bump locations** (update all on release):
 1. `ui/package.json.version`
 2. `ui/src/server/index.ts` inside `/api/health` response (`version: '1.0.7'`)
-3. Status line in `README.md` (`Status: v1.0.7.`)
+3. Status line in `README.md` (`Status: v1.1.0.`)
 
 **Commit pattern**: conventional commits, English. Examples from git log:
 - `feat: add install.sh and update.sh scripts, bump to v1.0.7`

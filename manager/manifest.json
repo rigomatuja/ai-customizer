@@ -10,7 +10,12 @@
       "version": "0.1.0",
       "createdAt": "2026-04-22T00:00:00Z",
       "changelog": "Initial release — catalog-aware manager for skills, agents, and patches."
+    },
+    {
+      "version": "0.2.0",
+      "createdAt": "2026-04-23T00:00:00Z",
+      "changelog": "Project inference from cwd (suggestion mode); patch auto-detection with .original baseline + blocking validations; gentle-ai detection via <!-- gentle-ai:* --> tag scan; guided exploration protocol (no subagent delegation, read-only outside write scope); agent creation collaborative checklist (Paso 2.10)."
     }
   ],
-  "activeVersion": "0.1.0"
+  "activeVersion": "0.2.0"
 }
