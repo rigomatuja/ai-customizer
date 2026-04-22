@@ -2,7 +2,13 @@ import { Hono } from 'hono'
 import { GuideEntrySchema, PatchMasterName } from '../../shared/schemas'
 import { z } from 'zod'
 import { getCatalogPath } from '../catalog/paths'
-import { readGuide, removeGuideEntry, reorderGuide, upsertGuideEntry } from '../catalog/guide'
+import {
+  readGuide,
+  removeGuideEntry,
+  reorderGuide,
+  ReorderMismatchError,
+  upsertGuideEntry,
+} from '../catalog/guide'
 
 export const guideRoutes = new Hono()
 
@@ -71,6 +77,20 @@ guideRoutes.post('/:target/reorder', async (c) => {
     )
   }
   const catalogPath = getCatalogPath()
-  const guide = await reorderGuide(catalogPath, target.data, parsed.data.patchIds)
-  return c.json({ guide })
+  try {
+    const guide = await reorderGuide(catalogPath, target.data, parsed.data.patchIds)
+    return c.json({ guide })
+  } catch (err) {
+    if (err instanceof ReorderMismatchError) {
+      return c.json(
+        {
+          error: err.message,
+          code: 'reorder-mismatch',
+          details: { missing: err.missing, extra: err.extra },
+        },
+        400,
+      )
+    }
+    throw err
+  }
 })

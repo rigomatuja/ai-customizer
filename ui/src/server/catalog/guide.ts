@@ -74,6 +74,18 @@ export async function removeGuideEntry(
   return guide
 }
 
+export class ReorderMismatchError extends Error {
+  constructor(
+    public missing: string[],
+    public extra: string[],
+  ) {
+    super(
+      `reorder input is not a permutation of current entries — missing: [${missing.join(', ')}], extra: [${extra.join(', ')}]`,
+    )
+    this.name = 'ReorderMismatchError'
+  }
+}
+
 export async function reorderGuide(
   catalogRoot: string,
   target: PatchMasterName,
@@ -81,19 +93,17 @@ export async function reorderGuide(
 ): Promise<ApplicationGuide> {
   const guide = await readGuide(catalogRoot)
   const list = guide.targets[target]
+  const currentIds = new Set(list.map((e) => e.patchId))
+  const providedIds = new Set(patchIds)
+
+  const missing = [...currentIds].filter((id) => !providedIds.has(id))
+  const extra = [...providedIds].filter((id) => !currentIds.has(id))
+  if (missing.length > 0 || extra.length > 0) {
+    throw new ReorderMismatchError(missing, extra)
+  }
+
   const byId = new Map(list.map((e) => [e.patchId, e]))
-  const reordered: GuideEntry[] = []
-  for (const id of patchIds) {
-    const entry = byId.get(id)
-    if (entry) {
-      reordered.push({ ...entry, order: reordered.length })
-      byId.delete(id)
-    }
-  }
-  // Append any entries not in patchIds (shouldn't normally happen)
-  for (const entry of byId.values()) {
-    reordered.push({ ...entry, order: reordered.length })
-  }
+  const reordered: GuideEntry[] = patchIds.map((id, i) => ({ ...byId.get(id)!, order: i }))
   guide.targets[target] = reordered
   await writeGuide(catalogRoot, guide)
   return guide

@@ -21,9 +21,17 @@ import type {
 } from '../../shared/types'
 import { isKnownTrigger } from '../catalog/triggers'
 import type { LoadedCatalog } from '../catalog/loader'
+import { existsSync } from 'node:fs'
+import fs from 'node:fs/promises'
 import { hashFileIfExists } from './fs-utils'
 import { resolveInstallPath } from './paths'
-import { activeEntriesFor, activeGuideHashFor, globalMasterPath } from './patches'
+import {
+  activeEntriesFor,
+  activeGuideHashFor,
+  composePatches,
+  globalMasterPath,
+  originalBackupPath,
+} from './patches'
 
 interface PlannerInput {
   catalogPath: string
@@ -357,10 +365,38 @@ export async function computePlan(input: PlannerInput): Promise<Plan> {
     if (wantHash === currentHash) continue
 
     const willRestoreOriginal = active.length === 0 && trackerEntry !== undefined
+    const masterPath = globalMasterPath(target)
+
+    // Dry-run composition: catch before.md mismatches at plan time
+    // rather than letting them abort Apply halfway through.
+    if (active.length > 0 && missingPatchIds.length === 0) {
+      const origPath = originalBackupPath(masterPath)
+      const baselinePath = existsSync(origPath)
+        ? origPath
+        : existsSync(masterPath)
+          ? masterPath
+          : null
+      if (baselinePath) {
+        const baseline = await fs.readFile(baselinePath, 'utf8')
+        const composed = await composePatches({
+          catalogPath,
+          baseline,
+          target,
+          entries: active,
+        })
+        if ('code' in composed) {
+          blockers.push({
+            code: 'patch-dry-run-failed',
+            message: `patch ${composed.patchId} v${composed.version} would fail at Apply: ${composed.message}`,
+            customId: composed.patchId,
+          })
+        }
+      }
+    }
 
     patchOperations.push({
       target,
-      masterPath: globalMasterPath(target),
+      masterPath,
       currentHash,
       entries: active.map((e) => ({
         patchId: e.patchId,

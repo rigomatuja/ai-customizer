@@ -199,14 +199,23 @@ export async function executePatchApply(params: {
 }
 
 /**
- * Restore a master file from its `.original` and delete the backup.
- * Used when the user uninstalls all patches AND we want to fully
- * revert (beyond just writing baseline content back).
+ * Restore a master file from its `.original`.
+ *
+ * Note on `.original` persistence: we intentionally KEEP the
+ * `.original` file after restoration. It is the canonical baseline
+ * that all future patch applications start from — deleting it would
+ * mean the next patch install snapshots whatever the user's master
+ * happens to be at that moment, which may include manual edits or
+ * other tools' modifications. Keeping `.original` frozen gives
+ * deterministic patch composition across install/uninstall cycles.
+ *
+ * The user can delete `.original` manually if they want to "rebase"
+ * onto a new baseline (e.g., after a gentle-ai upgrade changed their
+ * master). It's a sidecar file, unmanaged by the installer once it
+ * exists.
  */
 export async function restoreFromOriginal(masterPath: string): Promise<void> {
   const origPath = originalBackupPath(masterPath)
   if (!existsSync(origPath)) return
   await fs.copyFile(origPath, masterPath)
-  // We keep .original around; it serves as the canonical baseline
-  // for future patch installs.
 }

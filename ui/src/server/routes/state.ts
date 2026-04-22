@@ -14,13 +14,21 @@ export const stateRoutes = new Hono()
 
 stateRoutes.get('/', async (c) => {
   const config = await readUserConfig()
-  const catalogPath = getCatalogPath()
-  const response: AppStateResponse = {
+  let catalogPath: string
+  let catalogError: string | null = null
+  try {
+    catalogPath = getCatalogPath()
+  } catch (err) {
+    catalogPath = ''
+    catalogError = err instanceof Error ? err.message : String(err)
+  }
+  const response: AppStateResponse & { catalogError?: string } = {
     initialized: config !== null,
     config,
     catalogPath,
     userConfigDir: userConfigDir(),
   }
+  if (catalogError) response.catalogError = catalogError
   return c.json(response)
 })
 
