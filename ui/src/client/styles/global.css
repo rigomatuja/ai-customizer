@@ -626,6 +626,16 @@ code,
   background: var(--bg-elev-2);
   color: var(--fg);
 }
+/* When <select> carries `.button-secondary`, match the bordered-ghost look
+   of the button variant. Used in the model-assignment dropdowns. */
+select.button-secondary {
+  padding: 0.4rem 0.5rem;
+  border-radius: 4px;
+  font: inherit;
+  cursor: pointer;
+  min-width: 0;
+  width: 100%;
+}
 
 .button-danger {
   background: var(--danger);

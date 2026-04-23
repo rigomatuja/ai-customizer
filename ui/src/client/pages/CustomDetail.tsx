@@ -263,7 +263,12 @@ function AgentModelPanel({ customId, activeVersion, onChanged }: AgentModelPanel
     if (note.trim()) body.changelogNote = note.trim()
     try {
       const result = await api.changeAgentModel(customId, body)
-      setInfo(`Patched v${result.fromVersion} → v${result.toVersion}. activeVersion bumped.`)
+      const touched = result.touchedFiles.length
+      setInfo(
+        `Patched v${result.fromVersion} → v${result.toVersion}. ` +
+          `activeVersion bumped (${touched} file(s) touched). ` +
+          `Run Apply to install the new version.`,
+      )
       setClaudeChoice(DO_NOT_CHANGE)
       setOpencodeChoice(DO_NOT_CHANGE)
       setNote('')

@@ -10,7 +10,6 @@ description: API conventions for the AI Customizer — Hono routes, Zod schema-f
   Invoke manually if Opencode does not surface it.
 -->
 
-
 # API development
 
 ## When I'm loaded
@@ -122,6 +121,20 @@ All JSON-file writes go through `writeJsonAtomic` in
 exception is the patch composer writing to master files
 (`installer/patches.ts`) — those use `fs.writeFile` directly and rely
 on the pre-Apply tar.gz backup for rollback.
+
+## Catalog-write surface (normally forbidden, narrowly opened)
+
+By convention, the UI does NOT edit `customizations/**` content — the
+manager agent is the single actor that authors customs. **The one
+documented exception is `catalog/agent-model.ts::changeAgentModel`**,
+invoked from `POST /api/customs/agent/:id/model`. It clones the active
+version folder to `v<current+0.0.1>/`, surgically rewrites the `model:`
+field in the per-tool agent body, and bumps `manifest.activeVersion`.
+The manifest write is atomic; the per-tool body writes use
+`fs.writeFile` directly (minor — wrapped in try/catch with cleanup
+that removes the orphan folder on failure). If you add another
+catalog-write endpoint in the future, document it here too and keep
+the count of exceptions small.
 
 Mutating endpoints that touch the tracker or application-guide MUST
 wrap the read-modify-write cycle in the per-key mutex:

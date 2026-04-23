@@ -12,7 +12,8 @@
 #
 # Files that get overwritten (upstream wins):
 #   ui/                 manager/                docs/
-#   .claude/skills/     .opencode/skills/
+#   .claude/skills/     .opencode/skills/       .ai-customizer/models/
+#   install.sh          update.sh
 #   README.md           LICENSE                 .gitignore
 #
 # Files that are NEVER touched (your state stays put):
@@ -40,6 +41,7 @@ UPDATE_PATHS=(
   "docs"
   ".claude/skills"
   ".opencode/skills"
+  ".ai-customizer/models"
   "install.sh"
   "update.sh"
   "README.md"

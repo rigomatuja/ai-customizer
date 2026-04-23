@@ -156,8 +156,10 @@ async function updateToolBody(
 ): Promise<void> {
   const bodyPath = path.join(versionDir, tool, `${customId}.md`)
   if (!existsSync(bodyPath)) {
-    // Tool variant does not exist in this version — silently skip.
-    return
+    throw new AgentModelChangeError(
+      'tool-variant-missing',
+      `agent ${customId} has no ${tool} variant in this version — author the ${tool} body first`,
+    )
   }
   const body = await fs.readFile(bodyPath, 'utf8')
   const updated = applyModelField(body, value)
@@ -196,11 +198,27 @@ export async function changeAgentModel(input: AgentModelChangeInput): Promise<Ag
   await copyDirRecursive(fromDir, toDir)
 
   const touchedFiles: string[] = []
-  if (input.claude !== undefined) {
-    await updateToolBody(toDir, 'claude', customId, input.claude, touchedFiles)
+  try {
+    if (input.claude !== undefined) {
+      await updateToolBody(toDir, 'claude', customId, input.claude, touchedFiles)
+    }
+    if (input.opencode !== undefined) {
+      await updateToolBody(toDir, 'opencode', customId, input.opencode, touchedFiles)
+    }
+  } catch (err) {
+    // Roll back: remove the half-written new version folder so we don't
+    // leave orphan state on disk. Manifest has NOT been touched yet.
+    await fs.rm(toDir, { recursive: true, force: true }).catch(() => undefined)
+    throw err
   }
-  if (input.opencode !== undefined) {
-    await updateToolBody(toDir, 'opencode', customId, input.opencode, touchedFiles)
+
+  if (touchedFiles.length === 0) {
+    // No actual content change — don't bump the version for a no-op.
+    await fs.rm(toDir, { recursive: true, force: true }).catch(() => undefined)
+    throw new AgentModelChangeError(
+      'no-effective-change',
+      'requested model change produced no diff (already matched current frontmatter)',
+    )
   }
 
   // Manifest update: append version + bump activeVersion.

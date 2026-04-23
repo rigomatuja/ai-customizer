@@ -141,10 +141,10 @@ touching anything you've created locally:
 ```
 
 **Upstream wins** for: `ui/`, `manager/`, `docs/`, `.claude/skills/`,
-`.opencode/skills/`, `install.sh`, `update.sh`, `README.md`, `LICENSE`,
-`.gitignore`. The scripts self-update as part of this list — once the
-current process finishes, the next `./update.sh` invocation uses the
-refreshed script.
+`.opencode/skills/`, `.ai-customizer/models/`, `install.sh`, `update.sh`,
+`README.md`, `LICENSE`, `.gitignore`. The scripts self-update as part
+of this list — once the current process finishes, the next
+`./update.sh` invocation uses the refreshed script.
 
 **Never touched**: `customizations/**`, `application-guide.json`,
 `.ai-customizer/triggers.json`, `.ai-customizer/catalog.json`.
@@ -688,6 +688,37 @@ Gentle AI integration**.
 
 The tag format is an open convention — any `<!-- gentle-ai:<alphanumeric_-> -->`
 comment counts. The detection endpoint is `GET /api/tools/gentle-ai`.
+
+### Model assignment (agents only)
+
+Agents can be created with — or later switched to — a specific model
+per tool. Two registries drive the choices:
+
+- **Claude**: a static list at
+  `.ai-customizer/models/claude.json` inside your catalog. Ships with
+  sensible defaults for the three tiers (`haiku`, `sonnet`, `opus`)
+  plus a set of known full-ID versions. You edit this file directly
+  when Anthropic releases new versions — the manager never invents
+  IDs outside this file.
+- **Opencode**: a detected list at
+  `~/.config/ai-customizer/opencode-models.json`, populated by
+  **Settings → Models → Refresh**. The refresh replicates the
+  detection gentle-ai uses: reads `~/.cache/opencode/models.json` +
+  `~/.local/share/opencode/auth.json` + relevant env vars, and
+  surfaces providers you're authenticated against.
+
+Settings → Models shows both registries side by side. The manager
+asks about model per tool during agent creation (dimension 12 of the
+checklist), defaulting to **inherit** (no `model:` field in the
+frontmatter) unless you pick explicitly.
+
+Once an agent is created, the UI exposes a **Model assignment** panel
+on the agent's detail page — this is the ONE UI-driven write into
+`customizations/**` content. Picking a new model from either dropdown
+and clicking Save produces a **patch-bump**: a new version folder
+(`v<current+0.0.1>/`) is cloned from the active version with the
+`model:` field rewritten, and `manifest.activeVersion` is bumped. Run
+Apply to install the new version; the old version remains for rollback.
 
 ---
 

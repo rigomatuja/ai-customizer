@@ -40,7 +40,12 @@
       "version": "0.7.0",
       "createdAt": "2026-04-23T00:00:00Z",
       "changelog": "Per-agent model assignment. Step 2.10 grows to 12 dimensions: new dim 12 asks for the model on Claude (alias/full-id/inherit, from the static catalog registry at .ai-customizer/models/claude.json) AND on Opencode (provider/model-id from the detected registry populated via Settings → Models → Refresh). Default on both: omit the field (inherit from primary). Step 4.4 frontmatter templates updated with optional `model:` field for each tool. Manager NEVER invents model IDs that are not in the relevant registry. Model changes from the UI patch-bump the agent's version (new responsibility documented but the change is server-side, not manager-side)."
+    },
+    {
+      "version": "0.7.1",
+      "createdAt": "2026-04-23T00:00:00Z",
+      "changelog": "Audit fixes on v0.7.0. (1) Step 0.3 READ list explicitly allows `~/.config/ai-customizer/opencode-models.json` (without this, the manager could not read the detected Opencode registry for dim 12 per the 'never touch state dir beyond config.json' rule). (2) Step 2.10 dim 12 rewritten to instruct FILESYSTEM reads of both registries (catalog-side Claude JSON, state-side Opencode JSON) instead of HTTP endpoint references — the manager has no HTTP client, only filesystem tools. The `GET /api/tools/...` endpoints remain documented as the UI's view of the same data, useful to reference when talking to the user but NOT the manager's action path."
     }
   ],
-  "activeVersion": "0.7.0"
+  "activeVersion": "0.7.1"
 }

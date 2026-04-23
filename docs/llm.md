@@ -216,7 +216,7 @@ See `ui/package.json` for exact versions. Current release: **v1.4.0** (bumped in
 │       └── vX.Y.Z/{claude,opencode}/{before,after}.md
 ├── manager/                         # the manager agent (shipped with the template, NOT under customizations/)
 │   ├── manifest.json                # { id: "manager", type: "agent", activeVersion }
-│   └── v0.7.0/
+│   └── v0.7.1/
 │       ├── claude/manager.md        # Claude subagent
 │       ├── claude/slash-command.md  # /manager slash command (Claude-only; v1.0.6+)
 │       └── opencode/manager.md      # Opencode primary agent (YAML frontmatter)
@@ -843,7 +843,8 @@ No global store. Pages use `useAsync(() => api.xxx())` hooks that return
 - **type**: `agent`
 - **category**: `system`
 - **scope**: `global`
-- **activeVersion**: see `manager/manifest.json`. Currently `0.7.0`.
+- **activeVersion**: see `manager/manifest.json`. Currently `0.7.1`.
+  (v0.7.1 is a patch-bump audit-fix on v0.7.0 — see §10.10.)
 
 Not under `customizations/`. Factory-protected. Installed/uninstalled only
 through `/api/manager/*`.
@@ -1040,6 +1041,39 @@ body and/or Opencode agent body).
 - **Installer impact**: zero new code paths. Model changes are just
   version bumps; the general upgrade flow handles them.
 
+### 10.10 v0.7.1 protocol additions (over v0.7.0)
+
+Audit fixes on v0.7.0's model-assignment rollout. Two bug fixes
+in the manager body; no new features.
+
+- **Body §0.3 READ list** now explicitly allows
+  `~/.config/ai-customizer/opencode-models.json`. Without this
+  exception, the broader "never touch state dir beyond config.json"
+  rule forbade the manager from reading the Opencode registry that
+  dim 12 needs.
+- **Body §2.10 dim 12** rewritten to instruct FILESYSTEM reads of
+  both registries:
+  - Claude: `<catalogPath>/.ai-customizer/models/claude.json` (direct
+    file read).
+  - Opencode: `~/.config/ai-customizer/opencode-models.json` (direct
+    file read).
+  The previous wording referenced `GET /api/tools/claude-models` and
+  `GET /api/tools/opencode-models`, which the manager cannot invoke
+  (filesystem tools only, no HTTP client). Those endpoints remain
+  documented as the UI's view for user-facing context but are NOT
+  the manager's action path.
+- Server-side audit fixes (not manager-driven):
+  - `agent-model.ts::changeAgentModel` now rolls back the cloned
+    version folder on mid-flight failure or when the resulting diff
+    is empty (prevents orphan `v<next>/` dirs on disk).
+  - `POST /api/customs/agent/:id/model` returns `409 Conflict` (was
+    `400`) for `wrong-type`, `version-missing`, `tool-variant-missing`,
+    and `no-effective-change`. Keeps status codes aligned with §8
+    conventions.
+  - `updateToolBody` now errors with `tool-variant-missing` (was
+    silent-skip) when the requested tool has no body in the current
+    version — prevents "save succeeded, nothing changed" surprise.
+
 ### 10.2 Claude-only slash command (v1.0.6+)
 
 Installing the manager on Claude creates **two** files:
@@ -1054,7 +1088,7 @@ slash commands, so its install is a single file.
 **Slash-command pattern (general)**. If you need to ship a slash command for
 something other than the manager, the pattern is:
 - A markdown file at `~/.claude/commands/<name>.md` with YAML frontmatter
-  (see `manager/v0.7.0/claude/slash-command.md` for the canonical example).
+  (see `manager/v0.7.1/claude/slash-command.md` for the canonical example).
 - The body typically delegates to a subagent or runs instructions in the
   primary — it's just a prompt template Claude invokes on `/<name>`.
 - Installation goes through the same `ManagerAsset`-style 2-asset atomic
@@ -1075,7 +1109,7 @@ or edit a custom:
 5. **Content templates** — use the shipped templates for SKILL.md / agent.md /
    before.md+after.md shapes.
 
-Read `manager/v0.7.0/claude/manager.md` for the full current text. DO NOT
+Read `manager/v0.7.1/claude/manager.md` for the full current text. DO NOT
 hand-edit this in the catalog; bump a new version folder instead.
 
 ---
@@ -1164,7 +1198,11 @@ The UI detects the mismatch and offers Reinstall in Settings.
 - Warns on dirty working tree, asks to continue.
 - `git fetch upstream main` then `git checkout upstream/main -- <path>` for
   each of: `ui`, `manager`, `docs`, `.claude/skills`, `.opencode/skills`,
-  `install.sh`, `update.sh`, `README.md`, `LICENSE`, `.gitignore`.
+  `.ai-customizer/models`, `install.sh`, `update.sh`, `README.md`,
+  `LICENSE`, `.gitignore`. Note that `.ai-customizer/` as a whole is
+  NOT in the list — only the `models/` subdir (shipped, template-owned).
+  The sibling files `.ai-customizer/triggers.json` and
+  `.ai-customizer/catalog.json` remain user-owned and untouched.
 - **Self-updating.** `install.sh` and `update.sh` are in `UPDATE_PATHS`,
   so the scripts ship their own updates. The running bash process keeps
   the old inode open (git checkout replaces the file, doesn't edit it
@@ -1254,6 +1292,7 @@ author a skill, toggle it in the UI, Apply, verify on disk, toggle off, Apply.
 | Skill `paths` frontmatter (auto-activate on file-match) | supported | **unsupported** (field silently ignored) — semantic match via `description` only |
 | Skill `hooks` frontmatter | supported | unsupported |
 | Skill frontmatter schema | `name`, `description`, `when_to_use`, `paths`, `hooks`, `allowed-tools`, `model`, `effort`, `context`, `agent`, `shell`, `argument-hint`, `arguments`, `disable-model-invocation`, `user-invocable` | `name`, `description`, `license`, `compatibility`, `metadata` (unknown fields ignored) |
+| Per-agent model field value format | `model: <alias\|full-id>` — `opus`/`sonnet`/`haiku`/`inherit` or `claude-opus-4-7`. Registry: STATIC catalog-side `.ai-customizer/models/claude.json` (editable) | `model: <provider>/<model-id>` — e.g. `anthropic/claude-sonnet-4-5`. Registry: DETECTED state-side `~/.config/ai-customizer/opencode-models.json` (refreshable from Settings) |
 
 The code treats each tool as a first-class enum (`Tool = 'claude' | 'opencode'`)
 and dispatches on it in installer path resolvers (`ui/src/server/installer/paths.ts`)
@@ -1326,6 +1365,18 @@ From `DESIGN.md` §12 and README "Not in v1":
     Easy check before committing: `diff .claude/skills/<name>/SKILL.md
     .opencode/skills/<name>/SKILL.md` should show only the frontmatter
     block and the comment explaining Opencode's limitation.
+12. **Opencode model registry is empty on first run.** The state-dir
+    registry at `~/.config/ai-customizer/opencode-models.json` is NOT
+    populated automatically — it exists only after the user clicks
+    **Refresh** in Settings → Models (or calls the refresh endpoint).
+    The refresh itself reads from `~/.cache/opencode/models.json`,
+    which is populated by the `opencode models` CLI — if the user has
+    never run that, the cache is empty and the registry stays empty.
+    Symptoms: the manager's Step 2.10 dim 12 asks for an Opencode
+    model and the detected list shows zero entries; UI dropdown says
+    *"no models detected — refresh from Settings"*. Fix: user runs
+    `opencode models` then clicks Refresh. The Claude registry is
+    catalog-side and ships with defaults, so it is never empty.
 
 ---
 

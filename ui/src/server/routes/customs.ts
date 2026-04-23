@@ -84,7 +84,15 @@ customsRoutes.post('/agent/:id/model', async (c) => {
     return c.json(result)
   } catch (err) {
     if (err instanceof AgentModelChangeError) {
-      const status = err.code === 'not-found' ? 404 : 400
+      const status =
+        err.code === 'not-found'
+          ? 404
+          : err.code === 'wrong-type' ||
+              err.code === 'version-missing' ||
+              err.code === 'tool-variant-missing' ||
+              err.code === 'no-effective-change'
+            ? 409
+            : 400
       return c.json(apiError(err.message, err.code), status)
     }
     return c.json(
