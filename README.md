@@ -141,7 +141,10 @@ touching anything you've created locally:
 ```
 
 **Upstream wins** for: `ui/`, `manager/`, `docs/`, `.claude/skills/`,
-`.opencode/skills/`, `README.md`, `LICENSE`, `.gitignore`.
+`.opencode/skills/`, `install.sh`, `update.sh`, `README.md`, `LICENSE`,
+`.gitignore`. The scripts self-update as part of this list — once the
+current process finishes, the next `./update.sh` invocation uses the
+refreshed script.
 
 **Never touched**: `customizations/**`, `application-guide.json`,
 `.ai-customizer/triggers.json`, `.ai-customizer/catalog.json`.

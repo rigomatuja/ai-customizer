@@ -40,6 +40,8 @@ UPDATE_PATHS=(
   "docs"
   ".claude/skills"
   ".opencode/skills"
+  "install.sh"
+  "update.sh"
   "README.md"
   "LICENSE"
   ".gitignore"
@@ -177,6 +179,18 @@ if [ "$UPDATE_HAD_CHANGES" = "1" ]; then
   if echo "$CHANGED_FILES" | grep -q '^manager/'; then
     echo "  → manager/ sources changed."
     echo "    Open the UI → Settings → Manager → Reinstall to pick up the new version."
+    echo ""
+  fi
+
+  # Self-update awareness: if the updater scripts themselves were
+  # refreshed, the current bash process is still running from the OLD
+  # inode (bash keeps the original file open). The new script takes
+  # effect from the NEXT invocation. Tell the user.
+  if echo "$CHANGED_FILES" | grep -qE '^(update\.sh|install\.sh)$'; then
+    echo "  [!] install.sh / update.sh were updated in this run."
+    echo "      The current process is still running the OLD script."
+    echo "      Next time you run ./update.sh or ./install.sh you'll get"
+    echo "      the new behavior. No further action needed now."
     echo ""
   fi
 

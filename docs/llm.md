@@ -968,7 +968,13 @@ The UI detects the mismatch and offers Reinstall in Settings.
 - Warns on dirty working tree, asks to continue.
 - `git fetch upstream main` then `git checkout upstream/main -- <path>` for
   each of: `ui`, `manager`, `docs`, `.claude/skills`, `.opencode/skills`,
-  `README.md`, `LICENSE`, `.gitignore`.
+  `install.sh`, `update.sh`, `README.md`, `LICENSE`, `.gitignore`.
+- **Self-updating.** `install.sh` and `update.sh` are in `UPDATE_PATHS`,
+  so the scripts ship their own updates. The running bash process keeps
+  the old inode open (git checkout replaces the file, doesn't edit it
+  in place), so the old script finishes cleanly; the new version takes
+  effect from the next invocation. When this happens the script prints
+  a `[!] install.sh / update.sh were updated in this run` notice.
 - **Never** touches `customizations/**`, `application-guide.json`,
   `.ai-customizer/triggers.json`, `.ai-customizer/catalog.json`.
 - After checkout: detects whether anything actually changed and prints a
