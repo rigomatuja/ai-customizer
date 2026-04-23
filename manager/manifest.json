@@ -45,7 +45,12 @@
       "version": "0.7.1",
       "createdAt": "2026-04-23T00:00:00Z",
       "changelog": "Audit fixes on v0.7.0. (1) Step 0.3 READ list explicitly allows `~/.config/ai-customizer/opencode-models.json` (without this, the manager could not read the detected Opencode registry for dim 12 per the 'never touch state dir beyond config.json' rule). (2) Step 2.10 dim 12 rewritten to instruct FILESYSTEM reads of both registries (catalog-side Claude JSON, state-side Opencode JSON) instead of HTTP endpoint references — the manager has no HTTP client, only filesystem tools. The `GET /api/tools/...` endpoints remain documented as the UI's view of the same data, useful to reference when talking to the user but NOT the manager's action path."
+    },
+    {
+      "version": "0.8.0",
+      "createdAt": "2026-04-23T00:00:00Z",
+      "changelog": "Gentle-ai capability enumeration. Step 0.3 READ list expanded to cover the tool-side skill/agent/command dirs (~/.claude/skills/**, ~/.claude/agents/**, ~/.claude/commands/**, ~/.config/opencode/skills/**, ~/.config/opencode/agent/**) — read-only, never write. Step 3.9 rewritten as a two-phase protocol: Phase 1 does the existing tag scan (install detection); Phase 2 enumerates gentle-ai's installed skills, slash commands, and agents via filesystem for reference during authoring. Guidance on how to use the enumeration in skill/agent/patch authoring: body-reference gentle-ai skill IDs by exact match; do NOT add them to dependencies.customs (that's catalog-internal); dependencies.gentleAi.required = true is the correct runtime flag. New Step 3.4.g documents patches targeting gentle-ai tag sections (the primary patch use case). Light touches in 2.10 and 2.11 nudge the manager to run the enumeration before Show-before-write when the user's intent overlaps with what gentle-ai provides. A TAG IS NOT A SKILL ID is emphasized throughout — previous versions confused the two."
     }
   ],
-  "activeVersion": "0.7.1"
+  "activeVersion": "0.8.0"
 }

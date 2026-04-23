@@ -182,8 +182,8 @@ If your change also affects how the manager is installed on disk
 
 ## References
 
-- Current manager: `manager/v0.7.1/{claude,opencode}/manager.md`.
-- Slash command: `manager/v0.7.1/claude/slash-command.md`.
+- Current manager: `manager/v0.8.0/{claude,opencode}/manager.md`.
+- Slash command: `manager/v0.8.0/claude/slash-command.md`.
 - Manifest: `manager/manifest.json`.
 - Installer: `ui/src/server/installer/manager-install.ts`.
 - Route: `ui/src/server/routes/manager.ts`.

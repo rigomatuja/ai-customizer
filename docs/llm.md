@@ -216,7 +216,7 @@ See `ui/package.json` for exact versions. Current release: **v1.4.0** (bumped in
 │       └── vX.Y.Z/{claude,opencode}/{before,after}.md
 ├── manager/                         # the manager agent (shipped with the template, NOT under customizations/)
 │   ├── manifest.json                # { id: "manager", type: "agent", activeVersion }
-│   └── v0.7.1/
+│   └── v0.8.0/
 │       ├── claude/manager.md        # Claude subagent
 │       ├── claude/slash-command.md  # /manager slash command (Claude-only; v1.0.6+)
 │       └── opencode/manager.md      # Opencode primary agent (YAML frontmatter)
@@ -843,8 +843,8 @@ No global store. Pages use `useAsync(() => api.xxx())` hooks that return
 - **type**: `agent`
 - **category**: `system`
 - **scope**: `global`
-- **activeVersion**: see `manager/manifest.json`. Currently `0.7.1`.
-  (v0.7.1 is a patch-bump audit-fix on v0.7.0 — see §10.10.)
+- **activeVersion**: see `manager/manifest.json`. Currently `0.8.0`.
+  (v0.8.0 adds gentle-ai capability enumeration — see §10.11.)
 
 Not under `customizations/`. Factory-protected. Installed/uninstalled only
 through `/api/manager/*`.
@@ -1074,6 +1074,51 @@ in the manager body; no new features.
     silent-skip) when the requested tool has no body in the current
     version — prevents "save succeeded, nothing changed" surprise.
 
+### 10.11 v0.8.0 protocol additions (over v0.7.1)
+
+Gentle-ai capability enumeration — the manager can now reference
+gentle-ai's installed skills, slash commands, and agents when
+authoring customs, instead of just detecting that gentle-ai exists.
+
+- **Body §0.3 READ list expanded** to include the tool-side dirs
+  gentle-ai's artifacts live in: `~/.claude/skills/**`,
+  `~/.claude/agents/**`, `~/.claude/commands/**`,
+  `~/.config/opencode/skills/**`, `~/.config/opencode/agent/**`.
+  All read-only; the manager still never writes into these paths.
+- **Body §3.9 rewritten as a two-phase protocol**:
+  - **Phase 1 — install detection** (existing tag scan): walks
+    `CLAUDE.md` and `AGENTS.md` for `<!-- gentle-ai:<tag> -->`.
+    Presence = gentle-ai installed. Absence = skip Phase 2.
+  - **Phase 2 — capability enumeration** (NEW): lists
+    `~/.claude/skills/` + reads each `SKILL.md` frontmatter;
+    `~/.claude/commands/` + reads each command file;
+    `~/.claude/agents/` (minus our own manager); same for Opencode.
+    Builds a compact map of `{ thematicTags, claudeSkills,
+    claudeSlashCommands, claudeAgents, opencodeSkills,
+    opencodeAgents }`.
+  - Guidance on using the enumeration during authoring — body text
+    references gentle-ai skill IDs by exact match; manifest carries
+    `dependencies.gentleAi.required = true`; do NOT add gentle-ai
+    skills to `dependencies.customs` (that field is for this
+    catalog's skills/agents only — adding a name not in the catalog
+    would make the planner fail with `dependency-missing-in-catalog`).
+- **New Body §3.4.g** — Patches targeting gentle-ai tag sections.
+  Documents the primary patch use case: override/extend a thematic
+  block of a master. Boundaries = from the `<!-- gentle-ai:<tag> -->`
+  line to just before the next heading of equal or higher level (or
+  the next tag marker). The `before.md` is that full block from
+  `.original`.
+- **Body §2.10 / §2.11 nudges** — during agent or skill creation, if
+  the intent overlaps with what gentle-ai provides (SDD workflow,
+  issue/PR creation, adversarial review, engram memory protocol,
+  etc.), the manager runs Phase 1 + Phase 2 BEFORE Show-before-write
+  and proposes concrete references in the body.
+- **A TAG IS NOT A SKILL ID** is emphasised throughout §3.9.
+  Previous versions conflated the two and asked the user *"is this
+  tag a skill or an agent?"* — that was wrong. A tag is a thematic
+  marker in the master; a skill is an invokable unit in the skills
+  dir. The two are related but distinct.
+
 ### 10.2 Claude-only slash command (v1.0.6+)
 
 Installing the manager on Claude creates **two** files:
@@ -1088,7 +1133,7 @@ slash commands, so its install is a single file.
 **Slash-command pattern (general)**. If you need to ship a slash command for
 something other than the manager, the pattern is:
 - A markdown file at `~/.claude/commands/<name>.md` with YAML frontmatter
-  (see `manager/v0.7.1/claude/slash-command.md` for the canonical example).
+  (see `manager/v0.8.0/claude/slash-command.md` for the canonical example).
 - The body typically delegates to a subagent or runs instructions in the
   primary — it's just a prompt template Claude invokes on `/<name>`.
 - Installation goes through the same `ManagerAsset`-style 2-asset atomic
@@ -1109,7 +1154,7 @@ or edit a custom:
 5. **Content templates** — use the shipped templates for SKILL.md / agent.md /
    before.md+after.md shapes.
 
-Read `manager/v0.7.1/claude/manager.md` for the full current text. DO NOT
+Read `manager/v0.8.0/claude/manager.md` for the full current text. DO NOT
 hand-edit this in the catalog; bump a new version folder instead.
 
 ---
