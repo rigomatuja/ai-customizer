@@ -216,7 +216,7 @@ See `ui/package.json` for exact versions. Current release: **v1.4.0** (bumped in
 │       └── vX.Y.Z/{claude,opencode}/{before,after}.md
 ├── manager/                         # the manager agent (shipped with the template, NOT under customizations/)
 │   ├── manifest.json                # { id: "manager", type: "agent", activeVersion }
-│   └── v0.8.0/
+│   └── v0.8.1/
 │       ├── claude/manager.md        # Claude subagent
 │       ├── claude/slash-command.md  # /manager slash command (Claude-only; v1.0.6+)
 │       └── opencode/manager.md      # Opencode primary agent (YAML frontmatter)
@@ -843,8 +843,9 @@ No global store. Pages use `useAsync(() => api.xxx())` hooks that return
 - **type**: `agent`
 - **category**: `system`
 - **scope**: `global`
-- **activeVersion**: see `manager/manifest.json`. Currently `0.8.0`.
-  (v0.8.0 adds gentle-ai capability enumeration — see §10.11.)
+- **activeVersion**: see `manager/manifest.json`. Currently `0.8.1`.
+  (v0.8.0 added gentle-ai enumeration — see §10.11; v0.8.1 audit-fixes
+  on top — see §10.12.)
 
 Not under `customizations/`. Factory-protected. Installed/uninstalled only
 through `/api/manager/*`.
@@ -1119,6 +1120,42 @@ authoring customs, instead of just detecting that gentle-ai exists.
   marker in the master; a skill is an invokable unit in the skills
   dir. The two are related but distinct.
 
+### 10.12 v0.8.1 protocol additions (over v0.8.0)
+
+Audit-fix pass on v0.8.0's gentle-ai enumeration rollout. Three
+coordinated changes that together tighten a core principle: **the
+manager reads nothing about gentle-ai unsolicited**.
+
+- **Trigger vocabulary formalized (body §3.9)**. New sub-section
+  enumerates the explicit signals that license running each phase:
+  *direct* (*"is gentle-ai installed?"*), *indirect* (user names a
+  gentle-ai concept or capability), *discovery* (*"what can I use?"*),
+  *composition* (*"use sdd-verify in this"*). If no signal is
+  present, NO phase runs. The old "intent overlaps with gentle-ai"
+  license is removed — too soft; caused the manager to run
+  enumeration even when the user never mentioned gentle-ai.
+- **New Phase 3 — deep read (body §3.9)**. Phase 2 stays shallow
+  (frontmatter only: id + description). When the user picks a
+  specific capability to reference, Phase 3 Reads the full body and
+  extracts `whenToInvoke / whatItDoes / output / rules / antiPatterns`
+  so the manager can reference precisely in the user's custom. Each
+  deep-read is scoped per 0.6 individually. This answers the
+  long-standing question "how does the manager know what each
+  gentle-ai thing actually does?" — it doesn't, until the user
+  commits to referencing it, at which point Phase 3 provides
+  operational detail.
+- **Presentation improvements (body §3.9)**. Shallow enumeration
+  output now groups skills by natural prefix (SDD workflow, PR/issue,
+  Review, Skill authoring, Other) and separates ambient tags from
+  invokable skills from user-typed slash commands. A new terminology
+  glossary at the top of §3.9 makes the four-way distinction
+  (tag / skill / slash command / subagent) explicit with a table.
+- **Steps 2.10 and 2.11 composition-check paragraphs rewritten**.
+  The old language said *"if intent overlaps with gentle-ai, run
+  the enumeration"*. New language says *"ONLY when the user has
+  given a gentle-ai signal per 3.9's trigger vocabulary"*. Aligns
+  with the strict-opt-in principle.
+
 ### 10.2 Claude-only slash command (v1.0.6+)
 
 Installing the manager on Claude creates **two** files:
@@ -1133,7 +1170,7 @@ slash commands, so its install is a single file.
 **Slash-command pattern (general)**. If you need to ship a slash command for
 something other than the manager, the pattern is:
 - A markdown file at `~/.claude/commands/<name>.md` with YAML frontmatter
-  (see `manager/v0.8.0/claude/slash-command.md` for the canonical example).
+  (see `manager/v0.8.1/claude/slash-command.md` for the canonical example).
 - The body typically delegates to a subagent or runs instructions in the
   primary — it's just a prompt template Claude invokes on `/<name>`.
 - Installation goes through the same `ManagerAsset`-style 2-asset atomic
@@ -1154,7 +1191,7 @@ or edit a custom:
 5. **Content templates** — use the shipped templates for SKILL.md / agent.md /
    before.md+after.md shapes.
 
-Read `manager/v0.8.0/claude/manager.md` for the full current text. DO NOT
+Read `manager/v0.8.1/claude/manager.md` for the full current text. DO NOT
 hand-edit this in the catalog; bump a new version folder instead.
 
 ---
