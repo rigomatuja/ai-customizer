@@ -162,7 +162,12 @@ function buildInstallPhysicals(params: {
       errors.push(res.error)
       continue
     }
-    physical.push({ kind: 'copy', from: res.sourceFile, to: res.destFile })
+    // One or more assets per tool (e.g., a Claude agent with a
+    // slash-command companion emits TWO copy ops — agent body +
+    // `.claude/commands/<id>.md`).
+    for (const asset of res) {
+      physical.push({ kind: 'copy', from: asset.sourceFile, to: asset.destFile })
+    }
   }
   return { physical, errors }
 }

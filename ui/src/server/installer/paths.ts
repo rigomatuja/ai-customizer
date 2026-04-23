@@ -1,17 +1,31 @@
+import { existsSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import type { InstallableType, TargetScope, Tool } from '../../shared/schemas'
 import type { ProjectEntry } from '../../shared/schemas'
 
-export interface InstallPathResolution {
+export interface InstallAsset {
   sourceFile: string
   destFile: string
 }
 
 /**
  * Resolve source + destination paths for a given custom install.
- * - skills: `<tool>/SKILL.md` → `<skills-dir>/<id>/SKILL.md`
- * - agents: `<tool>/<id>.md`  → `<agents-dir>/<id>.md`
+ *
+ * Returns a LIST of assets because a single (custom, tool, scope) tuple
+ * may produce more than one file on disk:
+ *   - skills: always 1 asset (SKILL.md).
+ *   - agents (Opencode): always 1 asset (the agent body).
+ *   - agents (Claude): 1 asset by default (the subagent body). A second
+ *     asset — a slash-command file at `<claude>/commands/<id>.md` — is
+ *     produced when the authoring folder contains an OPTIONAL
+ *     `v<ver>/claude/slash-command.md`. Presence-based opt-in: no
+ *     manifest schema change needed.
+ *
+ * Disk layout per case:
+ *   - skill    → `<skills-dir>/<id>/SKILL.md`
+ *   - agent    → `<agents-dir>/<id>.md` (plural for Claude, singular for Opencode)
+ *   - slash    → `<claude>/commands/<id>.md`  (Claude only, opt-in)
  */
 export function resolveInstallPath(params: {
   catalogPath: string
@@ -21,7 +35,7 @@ export function resolveInstallPath(params: {
   tool: Tool
   target: TargetScope
   projects: ProjectEntry[]
-}): InstallPathResolution | { error: string } {
+}): InstallAsset[] | { error: string } {
   const { catalogPath, customId, customType, version, tool, target, projects } = params
 
   const projectRoot =
@@ -71,5 +85,33 @@ export function resolveInstallPath(params: {
     }
   }
 
-  return { sourceFile, destFile }
+  const assets: InstallAsset[] = [{ sourceFile, destFile }]
+
+  // Optional companion: Claude agent slash-command file. Opt-in by
+  // presence of `v<ver>/claude/slash-command.md` in the authoring.
+  // Opencode has no slash-command mechanism — never attached there.
+  if (customType === 'agent' && tool === 'claude') {
+    const slashSource = path.join(
+      catalogPath,
+      'customizations',
+      typeFolder,
+      customId,
+      `v${version}`,
+      'claude',
+      'slash-command.md',
+    )
+    if (existsSync(slashSource)) {
+      const baseClaude =
+        target.scope === 'global' ? path.join(home, '.claude') : path.join(projectRoot!, '.claude')
+      assets.push({
+        sourceFile: slashSource,
+        destFile: path.join(baseClaude, 'commands', `${customId}.md`),
+      })
+    }
+  }
+
+  return assets
 }
+
+// Back-compat alias for modules that imported the old type name.
+export type InstallPathResolution = InstallAsset

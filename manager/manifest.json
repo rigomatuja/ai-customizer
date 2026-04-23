@@ -30,7 +30,12 @@
       "version": "0.5.0",
       "createdAt": "2026-04-23T00:00:00Z",
       "changelog": "Three simultaneous changes to make the manager unambiguously English and collaboratively universal. (1) Language fix: all 'Paso'/'pasos' (Spanish) renamed to 'Step'/'steps' throughout both tool bodies and the intro index. No other Spanish leaks remained after audit. (2) New Step 0.7 Language policy: artifacts you write to disk are ALWAYS simple English (non-negotiable); communication WITH the user uses the user's language (English artifact fragments stay verbatim inside a non-English explanation). (3) New Step 1.7 Universal propose-don't-decide pattern: codifies the five-beat arc (free expression → incremental questions with free-expression fallbacks → draft + propose → confirm/correct iterate → persist) that ALL Step 2 operations now follow uniformly. Step 2.8 Analyst mode rewritten to invoke the universal arc explicitly for improve/classify/adapt-to-tool/delete, each with its own concrete proposal shape (diff-style summary per op)."
+    },
+    {
+      "version": "0.6.0",
+      "createdAt": "2026-04-23T00:00:00Z",
+      "changelog": "Agent invocation symmetry across tools. Step 2.10 checklist grows from 9 to 11 dimensions: (10) Opencode mode primary vs subagent — asked explicitly instead of always defaulting to primary; (11) Claude slash-command companion — opt-in second asset `v<ver>/claude/slash-command.md` that the installer copies to `<claude>/commands/<id>.md`. Step 4.4 agent template rewritten with the new optional companion file, its minimal body shape (delegates to the subagent), and a cross-tool invocation symmetry table pairing slash-command with mode: primary and bare subagent body with mode: subagent. No manifest schema change — installer detects the companion by file presence. The general installer now handles multi-asset agents, retiring the previous 'slash commands are a manager-only privilege' gap."
     }
   ],
-  "activeVersion": "0.5.0"
+  "activeVersion": "0.6.0"
 }

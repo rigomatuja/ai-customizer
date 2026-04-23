@@ -6,7 +6,7 @@ One git-versioned catalog of your customs (skills, agents, patches), a local
 web UI to install and uninstall them atomically, and a manager agent that
 writes the files for you when you ask.
 
-**Status**: v1.2.0. Local-use stable. Linux and macOS supported.
+**Status**: v1.3.0. Local-use stable. Linux and macOS supported.
 
 ---
 
@@ -316,10 +316,11 @@ Two routes.
      your `CLAUDE.md` / `AGENTS.md`. If found, it offers those tags
      as selectable dependencies; if not, it refuses to wire
      `dependencies.gentleAi`.
-   - **When creating agents**, walks a 9-dimension checklist
+   - **When creating agents**, walks an 11-dimension checklist
      (triggers, role, scope, procedure, tools, delegation, input,
-     output, failures, anti-patterns) before writing — one dimension
-     per question.
+     output, failures, anti-patterns, plus Opencode mode and whether
+     to ship a Claude `/<id>` slash-command companion) before
+     writing — one dimension per question.
 
 After the manager finishes, the new custom lives under
 `customizations/<type>/<id>/` and shows up in the UI on refresh.
