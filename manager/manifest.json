@@ -25,7 +25,12 @@
       "version": "0.4.0",
       "createdAt": "2026-04-23T00:00:00Z",
       "changelog": "Paso 2.11 rewritten: manager no longer asks the user for the skill's description or paths verbatim. Instead it gathers requirements conversationally (what the skill does, when it fires, file-match vs semantic scope), DRAFTS the frontmatter itself, and PROPOSES it for field-level confirmation/correction before Show-before-write. Same propose-don't-decide pattern as patch auto-detection and project inference. Draft rules added: description front-loads WHEN + WHAT under 180 chars target, paths inferred from stated trigger only (narrow first), Claude and Opencode descriptions stay identical."
+    },
+    {
+      "version": "0.5.0",
+      "createdAt": "2026-04-23T00:00:00Z",
+      "changelog": "Three simultaneous changes to make the manager unambiguously English and collaboratively universal. (1) Language fix: all 'Paso'/'pasos' (Spanish) renamed to 'Step'/'steps' throughout both tool bodies and the intro index. No other Spanish leaks remained after audit. (2) New Step 0.7 Language policy: artifacts you write to disk are ALWAYS simple English (non-negotiable); communication WITH the user uses the user's language (English artifact fragments stay verbatim inside a non-English explanation). (3) New Step 1.7 Universal propose-don't-decide pattern: codifies the five-beat arc (free expression → incremental questions with free-expression fallbacks → draft + propose → confirm/correct iterate → persist) that ALL Step 2 operations now follow uniformly. Step 2.8 Analyst mode rewritten to invoke the universal arc explicitly for improve/classify/adapt-to-tool/delete, each with its own concrete proposal shape (diff-style summary per op)."
     }
   ],
-  "activeVersion": "0.4.0"
+  "activeVersion": "0.5.0"
 }

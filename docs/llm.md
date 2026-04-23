@@ -214,7 +214,7 @@ See `ui/package.json` for exact versions. Current release: **v1.2.0** (bumped in
 │       └── vX.Y.Z/{claude,opencode}/{before,after}.md
 ├── manager/                         # the manager agent (shipped with the template, NOT under customizations/)
 │   ├── manifest.json                # { id: "manager", type: "agent", activeVersion }
-│   └── v0.4.0/
+│   └── v0.5.0/
 │       ├── claude/manager.md        # Claude subagent
 │       ├── claude/slash-command.md  # /manager slash command (Claude-only; v1.0.6+)
 │       └── opencode/manager.md      # Opencode primary agent (YAML frontmatter)
@@ -814,7 +814,7 @@ No global store. Pages use `useAsync(() => api.xxx())` hooks that return
 - **type**: `agent`
 - **category**: `system`
 - **scope**: `global`
-- **activeVersion**: see `manager/manifest.json`. Currently `0.4.0`.
+- **activeVersion**: see `manager/manifest.json`. Currently `0.5.0`.
 
 Not under `customizations/`. Factory-protected. Installed/uninstalled only
 through `/api/manager/*`.
@@ -871,7 +871,7 @@ through `/api/manager/*`.
 
 ### 10.6 v0.4.0 protocol additions (over v0.3.0)
 
-- **Paso 2.11 rewritten — collaborative frontmatter drafting
+- **Step 2.11 rewritten — collaborative frontmatter drafting
   (propose-don't-decide).** The manager NO LONGER asks the user to
   write the skill's `description` or `paths` verbatim. Instead:
   1. Gathers requirements conversationally (what the skill does, when
@@ -881,7 +881,7 @@ through `/api/manager/*`.
   3. **Proposes** the draft compactly (both tool variants side by
      side) and asks for field-level confirmation/correction.
   4. Iterates on corrections without redoing the whole proposal.
-  5. Only THEN proceeds to Show-before-write (Paso 1.6) with the
+  5. Only THEN proceeds to Show-before-write (Step 1.6) with the
      confirmed frontmatter baked in.
 - **Drafting rules codified**: description front-loads WHEN + WHAT
   under ~180 chars target; `paths` inferred narrowly from stated
@@ -891,6 +891,44 @@ through `/api/manager/*`.
   flow already in patch auto-detection (body §3.4) and project
   inference from cwd (body §3.8). Consistent mental model for the
   user: describe intent → manager drafts → you confirm or correct.
+
+### 10.7 v0.5.0 protocol additions (over v0.4.0)
+
+Three coordinated changes:
+
+- **Language audit — `Paso` → `Step` globally.** Spanish terminology
+  leaking into the manager body is now gone. The index at the top
+  says "5 steps"; every section heading and cross-reference reads
+  `Step`. No content changes from the rename — pure terminology fix.
+- **New body §0.7 Language policy.** Explicit split:
+  - **Artifacts written to disk** (catalog files, manifests, skill
+    and agent bodies, patches, guide entries, trigger vocabulary,
+    new manager version folders) → ALWAYS simple English.
+    Non-negotiable.
+  - **Communication with the user** (questions, explanations,
+    summaries, narration around artifact proposals) → matches the
+    user's language. Artifact fragments inside a non-English
+    explanation stay English verbatim — they are what will be
+    persisted.
+  - Style target for English artifacts: simple, direct, explicit,
+    concise, compact, authoritative, clear (expanded in body §4.1).
+- **New body §1.7 Universal propose-don't-decide pattern.**
+  Five-beat arc codified once for all operations:
+  1. Free expression (user leads).
+  2. Clarifying questions (incremental, 1-at-a-time, per 1.2/1.3).
+  3. Free-expression fallbacks during questioning (recognise and
+     yield).
+  4. Draft + propose (manager leads — never ask user for verbatim
+     artifact content).
+  5. Iterate to confirm, then persist.
+  Every Step 2 operation (`create`, `improve`, `version-bump`,
+  `classify`, `adapt-to-tool`, `delete`) follows this arc. Sub-steps
+  2.10, 2.11, 3.4 remain as operation-specific tunings.
+- **Body §2.8 Analyst mode rewritten.** Explicitly invokes the 1.7
+  arc for `improve` / `classify` / `adapt-to-tool` / `delete`, with a
+  concrete diff-style proposal shape per op. Cross-op warnings (e.g.
+  tracker state on `delete`, re-Apply reminder on `improve`) now
+  live in beat 4 so the user sees them BEFORE they confirm.
 
 ### 10.2 Claude-only slash command (v1.0.6+)
 
@@ -906,7 +944,7 @@ slash commands, so its install is a single file.
 **Slash-command pattern (general)**. If you need to ship a slash command for
 something other than the manager, the pattern is:
 - A markdown file at `~/.claude/commands/<name>.md` with YAML frontmatter
-  (see `manager/v0.4.0/claude/slash-command.md` for the canonical example).
+  (see `manager/v0.5.0/claude/slash-command.md` for the canonical example).
 - The body typically delegates to a subagent or runs instructions in the
   primary — it's just a prompt template Claude invokes on `/<name>`.
 - Installation goes through the same `ManagerAsset`-style 2-asset atomic
@@ -927,7 +965,7 @@ or edit a custom:
 5. **Content templates** — use the shipped templates for SKILL.md / agent.md /
    before.md+after.md shapes.
 
-Read `manager/v0.4.0/claude/manager.md` for the full current text. DO NOT
+Read `manager/v0.5.0/claude/manager.md` for the full current text. DO NOT
 hand-edit this in the catalog; bump a new version folder instead.
 
 ---
