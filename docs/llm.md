@@ -258,8 +258,8 @@ See `ui/package.json` for exact versions. Current release: **v1.3.0** (bumped in
         │   │   ├── projects.ts      # projects.json CRUD
         │   │   └── installations.ts # installations.json CRUD — UI's "desired state"
         │   ├── installer/
-        │   │   ├── paths.ts         # destination path resolver (tool × scope × id → absolute path)
-        │   │   ├── fs-utils.ts      # copyFile, hashFile, writeJsonAtomic (tmp + rename), deleteFileAndCleanup
+        │   │   ├── paths.ts         # destination path resolver (tool × scope × id → InstallAsset[]); returns 2 assets for Claude agents with an optional slash-command companion, 1 otherwise
+        │   │   ├── fs-utils.ts      # copyFile, hashFile, writeJsonAtomic (tmp + rename), deleteFileAndCleanup, pickCleanupBoundary
         │   │   ├── backup.ts        # tar.gz of tool dirs + project dirs; FIFO 10
         │   │   ├── planner.ts       # diff desired vs tracker vs fs → Plan with ops + warnings + blockers
         │   │   ├── executor.ts      # execute Plan atomically, with rollback on failure
@@ -738,6 +738,15 @@ Force-uninstall endpoints (`DELETE /api/orphans/:type/:id`,
 entries, remove affected guide entries, and for patch orphans attempt to
 restore the master from `.original`. If `.original` is missing, returns
 409 with `code: "restore-impossible"` unless `?force=1` is passed.
+
+**Cleanup boundary**: after unlinking an orphan file, the walk-up that
+removes empty parent directories now uses `pickCleanupBoundary` from
+`fs-utils.ts` with `[home, ...projectPaths]`. Longest-match wins, so the
+walk-up stops at the PROJECT root for project-scoped orphans (even when
+the project sits outside `$HOME`). Before v1.3.0 this used `$HOME` only,
+which left empty `<project>/.claude/skills/<id>/` dirs behind for
+projects outside `$HOME`. Files were always deleted correctly — the fix
+only affects the empty-directory cleanup tail.
 
 ---
 
