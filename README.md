@@ -111,6 +111,10 @@ From the catalog root:
 The installer checks prereqs (Node 20+, npm, git), runs `npm install` inside
 `ui/`, then starts the dev server in the foreground. Ctrl+C to stop.
 
+**Idempotent.** Re-running `./install.sh` while the UI is already up is a
+no-op: it detects the bound port (3000 or 5173), prints the current URLs,
+and exits 0. Rerun as many times as you want.
+
 Two processes start concurrently:
 - Hono API server on `http://127.0.0.1:3000`
 - Vite + React dev server on `http://127.0.0.1:5173` (proxies `/api/*` to :3000)
@@ -136,20 +140,27 @@ touching anything you've created locally:
 ./update.sh
 ```
 
-**Upstream wins** for: `ui/`, `manager/`, `docs/`, `README.md`, `LICENSE`,
-`.gitignore`.
+**Upstream wins** for: `ui/`, `manager/`, `docs/`, `.claude/skills/`,
+`.opencode/skills/`, `README.md`, `LICENSE`, `.gitignore`.
 
 **Never touched**: `customizations/**`, `application-guide.json`,
 `.ai-customizer/triggers.json`, `.ai-customizer/catalog.json`.
 
 The script adds an `upstream` git remote on first run (pointing at the
 official repo), fetches `main`, and checks out each upstream path into your
-working tree. Review with `git diff`, then commit when you're happy — the
-updater never commits for you.
+working tree. After the checkout the updater runs `npm install` in `ui/`
+(idempotent — fast no-op when the lockfile already matches) and then asks
+`Launch the UI now? [Y/n]`. Answer `Y` to start the dev server, `N` to
+exit and launch manually later (via `./install.sh` or `cd ui && npm run
+dev`).
 
-If `ui/package.json` changed, the script prints a reminder to run
-`cd ui && npm install`. If `manager/` changed, it reminds you to reinstall
-the manager from **Settings → Manager → Reinstall** inside the UI.
+**Idempotent.** When upstream has no changes, the updater prints
+`[i] Already up to date — no-op` and still offers to launch the UI
+(unless one is already running). Review with `git diff`, then commit when
+you're happy — the updater never commits for you.
+
+If `manager/` changed, the script reminds you to reinstall the manager
+from **Settings → Manager → Reinstall** inside the UI.
 
 ---
 
@@ -284,12 +295,28 @@ Two routes.
 **Route A — via the manager (recommended).**
 
 1. Open Claude Code or Opencode.
-2. **Claude**: the primary invokes the `ai-customizer-manager` subagent when
-   you ask things like *"create a skill for reviewing API endpoints"* or
-   *"add a patch to my CLAUDE.md that enforces voseo"*.
+2. **Claude**: type `/manager` to invoke the `ai-customizer-manager`
+   subagent. The primary does NOT auto-invoke by intent match — the
+   slash command is the only trigger.
 3. **Opencode**: Tab to the **AI Customizer Manager** primary agent.
-4. The manager asks: name, category, scope (global/project), target tools,
-   hook triggers if any, dependencies. Then writes the files.
+4. The manager drives the conversation. Beyond the base questions
+   (name, category, scope, target tools, hook triggers, dependencies)
+   it also:
+   - **Infers the project from `cwd`** when you pick `scope = project`
+     (runs `pwd` + `git config --get remote.origin.url`) and proposes
+     `{ name, path, repoUrl }` for you to confirm or correct.
+   - **Auto-detects patch regions** by reading the baseline
+     (`<master>.original`, or the current master if no `.original`
+     exists yet) and proposing candidate before/after snippets — you
+     confirm; you never have to paste regions yourself.
+   - **Detects gentle-ai** via `<!-- gentle-ai:<tag> -->` markers in
+     your `CLAUDE.md` / `AGENTS.md`. If found, it offers those tags
+     as selectable dependencies; if not, it refuses to wire
+     `dependencies.gentleAi`.
+   - **When creating agents**, walks a 9-dimension checklist
+     (triggers, role, scope, procedure, tools, delegation, input,
+     output, failures, anti-patterns) before writing — one dimension
+     per question.
 
 After the manager finishes, the new custom lives under
 `customizations/<type>/<id>/` and shows up in the UI on refresh.
@@ -640,6 +667,21 @@ and protected from factory reset.
 **Settings → Manager** shows install status per tool and offers install,
 reinstall, uninstall. Install is atomic with snapshot rollback if any of
 the per-tool copies fail.
+
+### Gentle AI integration
+
+The UI scans your masters (`~/.claude/CLAUDE.md` and
+`~/.config/opencode/AGENTS.md`) for HTML comment markers of the form
+`<!-- gentle-ai:<tag> -->` and surfaces the result in **Settings →
+Gentle AI integration**.
+
+- If any markers are found: gentle-ai is considered installed and the
+  manager offers those tags as selectable dependencies when you author
+  a custom (auto-filling `dependencies.gentleAi` + `dependencies.customs`).
+- If no markers are found: the manager refuses to wire gentle-ai deps.
+
+The tag format is an open convention — any `<!-- gentle-ai:<alphanumeric_-> -->`
+comment counts. The detection endpoint is `GET /api/tools/gentle-ai`.
 
 ---
 

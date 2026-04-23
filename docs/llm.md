@@ -1048,6 +1048,10 @@ author a skill, toggle it in the UI, Apply, verify on disk, toggle off, Apply.
 | Master patch file | `CLAUDE.md` (+ `.original`) | `AGENTS.md` (+ `.original`) |
 | Primary vs subagent | Subagent pattern (body + slash command) | Primary agent (YAML frontmatter) |
 | Project scope dir | `<project>/.claude/` | `<project>/.opencode/` |
+| Project-scoped skills discovery | `.claude/skills/<name>/SKILL.md` | `.opencode/skills/<name>/SKILL.md` |
+| Skill `paths` frontmatter (auto-activate on file-match) | supported | **unsupported** (field silently ignored) — semantic match via `description` only |
+| Skill `hooks` frontmatter | supported | unsupported |
+| Skill frontmatter schema | `name`, `description`, `when_to_use`, `paths`, `hooks`, `allowed-tools`, `model`, `effort`, `context`, `agent`, `shell`, `argument-hint`, `arguments`, `disable-model-invocation`, `user-invocable` | `name`, `description`, `license`, `compatibility`, `metadata` (unknown fields ignored) |
 
 The code treats each tool as a first-class enum (`Tool = 'claude' | 'opencode'`)
 and dispatches on it in installer path resolvers (`ui/src/server/installer/paths.ts`)
@@ -1113,6 +1117,13 @@ From `DESIGN.md` §12 and README "Not in v1":
     file is metadata for the human-readable error message — it is NOT used
     for staleness checks. So after an unclean crash, wait 60s and you can
     boot normally; or delete `~/.config/ai-customizer/.lock` manually.
+11. **System skill mirror drift.** Each of the 5 skills in
+    `.claude/skills/` has a twin in `.opencode/skills/`. Their bodies are
+    identical; only the frontmatter differs (Opencode's has no `paths`).
+    When you edit one, edit BOTH — there is no test that enforces parity.
+    Easy check before committing: `diff .claude/skills/<name>/SKILL.md
+    .opencode/skills/<name>/SKILL.md` should show only the frontmatter
+    block and the comment explaining Opencode's limitation.
 
 ---
 
