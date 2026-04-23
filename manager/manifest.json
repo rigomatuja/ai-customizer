@@ -15,7 +15,12 @@
       "version": "0.2.0",
       "createdAt": "2026-04-23T00:00:00Z",
       "changelog": "Project inference from cwd (suggestion mode); patch auto-detection with .original baseline + blocking validations; gentle-ai detection via <!-- gentle-ai:* --> tag scan; guided exploration protocol (no subagent delegation, read-only outside write scope); agent creation collaborative checklist (Paso 2.10)."
+    },
+    {
+      "version": "0.3.0",
+      "createdAt": "2026-04-23T00:00:00Z",
+      "changelog": "Skill creation now produces proper YAML frontmatter per tool: Claude gets full schema (name, description, optional when_to_use/paths/allowed-tools/etc.) for semantic auto-activation and paths-based triggers; Opencode gets reduced schema (name, description, optional license/compatibility/metadata) — Claude-only fields stripped from the mirror to avoid misleading readers. New Paso 2.11 collaborative questions for skill frontmatter (description + optional paths). Paso 4.3 rewritten with the mandatory frontmatter block and writing guidance (front-load use case, 1536-char budget, paths is Claude-only)."
     }
   ],
-  "activeVersion": "0.2.0"
+  "activeVersion": "0.3.0"
 }

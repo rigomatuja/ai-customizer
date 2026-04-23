@@ -214,7 +214,7 @@ See `ui/package.json` for exact versions. Current release: **v1.2.0** (bumped in
 │       └── vX.Y.Z/{claude,opencode}/{before,after}.md
 ├── manager/                         # the manager agent (shipped with the template, NOT under customizations/)
 │   ├── manifest.json                # { id: "manager", type: "agent", activeVersion }
-│   └── v0.2.0/
+│   └── v0.3.0/
 │       ├── claude/manager.md        # Claude subagent
 │       ├── claude/slash-command.md  # /manager slash command (Claude-only; v1.0.6+)
 │       └── opencode/manager.md      # Opencode primary agent (YAML frontmatter)
@@ -814,7 +814,7 @@ No global store. Pages use `useAsync(() => api.xxx())` hooks that return
 - **type**: `agent`
 - **category**: `system`
 - **scope**: `global`
-- **activeVersion**: see `manager/manifest.json`. Currently `0.2.0`.
+- **activeVersion**: see `manager/manifest.json`. Currently `0.3.0`.
 
 Not under `customizations/`. Factory-protected. Installed/uninstalled only
 through `/api/manager/*`.
@@ -844,6 +844,31 @@ through `/api/manager/*`.
   procedure, tools, delegation, input, output, failures,
   anti-patterns) one at a time before Show-before-write.
 
+### 10.5 v0.3.0 protocol additions (over v0.2.0)
+
+- **Skill frontmatter is now MANDATORY (body §4.3)**. Every
+  `SKILL.md` the manager produces opens with a YAML frontmatter block
+  with at least `name` and `description`. Before v0.3.0 the skill
+  template shipped as plain markdown and skills were born without
+  semantic-activation metadata — a silent breakage of Claude Code's
+  matcher and (per spec) Opencode's recognition.
+- **Per-tool frontmatter schemas (body §4.3.a)**:
+  - Claude `claude/SKILL.md` gets the full Claude Code schema —
+    `name`, `description`, plus optional `when_to_use`, `paths`,
+    `allowed-tools`, `disable-model-invocation`, `user-invocable`.
+  - Opencode `opencode/SKILL.md` gets the reduced Opencode schema —
+    `name`, `description`, plus optional `license`, `compatibility`,
+    `metadata`. Claude-only fields MUST be stripped from the mirror
+    (Opencode ignores them silently but they mislead human readers).
+- **Frontmatter guidance (body §4.3.b)**: description front-loads
+  the use case; combined `description + when_to_use` ≤ 1536 chars;
+  `paths` is Claude-only and only set when the user explicitly asks
+  for auto-activation on file patterns.
+- **Skill creation questions (body §2.11)**: when `op = create` AND
+  `type = skill`, the manager now asks two extra dimensions beyond
+  the base — description (with front-loaded trigger) and optional
+  auto-activation paths. Analogous to 2.10 for agents but lighter.
+
 ### 10.2 Claude-only slash command (v1.0.6+)
 
 Installing the manager on Claude creates **two** files:
@@ -858,7 +883,7 @@ slash commands, so its install is a single file.
 **Slash-command pattern (general)**. If you need to ship a slash command for
 something other than the manager, the pattern is:
 - A markdown file at `~/.claude/commands/<name>.md` with YAML frontmatter
-  (see `manager/v0.2.0/claude/slash-command.md` for the canonical example).
+  (see `manager/v0.3.0/claude/slash-command.md` for the canonical example).
 - The body typically delegates to a subagent or runs instructions in the
   primary — it's just a prompt template Claude invokes on `/<name>`.
 - Installation goes through the same `ManagerAsset`-style 2-asset atomic
@@ -879,7 +904,7 @@ or edit a custom:
 5. **Content templates** — use the shipped templates for SKILL.md / agent.md /
    before.md+after.md shapes.
 
-Read `manager/v0.2.0/claude/manager.md` for the full current text. DO NOT
+Read `manager/v0.3.0/claude/manager.md` for the full current text. DO NOT
 hand-edit this in the catalog; bump a new version folder instead.
 
 ---

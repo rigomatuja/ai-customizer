@@ -4,6 +4,7 @@ description: Manager protocol version-bump procedure for the AI Customizer — c
 paths:
   - manager/**
   - ui/src/server/installer/manager-install.ts
+  - ui/src/server/installer/planner.ts
   - ui/src/server/routes/manager.ts
   - ui/src/client/pages/Settings.tsx
 ---
@@ -179,8 +180,8 @@ If your change also affects how the manager is installed on disk
 
 ## References
 
-- Current manager: `manager/v0.2.0/{claude,opencode}/manager.md`.
-- Slash command: `manager/v0.2.0/claude/slash-command.md`.
+- Current manager: `manager/v0.3.0/{claude,opencode}/manager.md`.
+- Slash command: `manager/v0.3.0/claude/slash-command.md`.
 - Manifest: `manager/manifest.json`.
 - Installer: `ui/src/server/installer/manager-install.ts`.
 - Route: `ui/src/server/routes/manager.ts`.
