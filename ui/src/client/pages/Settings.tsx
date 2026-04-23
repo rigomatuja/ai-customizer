@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api, ApiClientError } from '../api/client'
 import type { Tool } from '../../shared/schemas'
+import type { ClaudeModelRegistry, OpencodeModelRegistry } from '../../shared/schemas'
 import type {
   AppStateResponse,
   GentleAiDetection,
@@ -27,6 +28,7 @@ export function Settings() {
       <ManagerPanel />
       <ToolsPanel tools={toolsState} state={stateResult} onSaved={refetchState} />
       <GentleAiPanel />
+      <ModelsPanel />
       <ProjectsPanel projects={projectsResult} onChanged={refetchProjects} />
       <OrphansPanel />
     </main>
@@ -97,6 +99,151 @@ function GentleAiContent({ data }: { data: GentleAiDetection }) {
         {scanRow('Opencode', data.opencode)}
       </div>
     </>
+  )
+}
+
+function ModelsPanel() {
+  const claude = useAsyncWithRefetch(() => api.claudeModels(), [])
+  const opencode = useAsyncWithRefetch(() => api.opencodeModels(), [])
+  const [refreshing, setRefreshing] = useState(false)
+  const [refreshError, setRefreshError] = useState<string | null>(null)
+  const [refreshInfo, setRefreshInfo] = useState<string | null>(null)
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    setRefreshError(null)
+    setRefreshInfo(null)
+    try {
+      const result = await api.refreshOpencodeModels()
+      opencode.refetch()
+      const notes: string[] = []
+      if (!result.sourcePaths.cacheFound) {
+        notes.push(`cache file missing at ${result.sourcePaths.cachePath} — run "opencode models" first`)
+      }
+      if (!result.sourcePaths.authFound) {
+        notes.push('no auth.json found — only env-var-authenticated providers will surface')
+      }
+      notes.push(`detected ${result.registry.models.length} model(s) across ${result.availableProviders.length} provider(s)`)
+      setRefreshInfo(notes.join('; '))
+    } catch (err) {
+      setRefreshError(err instanceof ApiClientError ? err.message : String(err))
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  return (
+    <section className="panel">
+      <h2>Models</h2>
+      <p className="muted small">
+        Per-agent model assignment reads from these two registries. Claude is static and
+        catalog-side (edit the JSON directly); Opencode is detected from your local install
+        and refreshable.
+      </p>
+
+      <div className="tool-detection-grid">
+        <div className="tool-card">
+          <div className="tool-card-head">
+            <strong>Claude</strong>
+            <span className="badge badge-ok">static registry</span>
+          </div>
+          {claude.state.status === 'loading' ? <p className="muted">Loading…</p> : null}
+          {claude.state.status === 'error' ? <p className="error">{claude.state.error.message}</p> : null}
+          {claude.state.status === 'success' ? <ClaudeModelsContent data={claude.state.data} /> : null}
+        </div>
+
+        <div className="tool-card">
+          <div className="tool-card-head">
+            <strong>Opencode</strong>
+            <span className="badge badge-ok">detected</span>
+          </div>
+          {opencode.state.status === 'loading' ? <p className="muted">Loading…</p> : null}
+          {opencode.state.status === 'error' ? <p className="error">{opencode.state.error.message}</p> : null}
+          {opencode.state.status === 'success' ? (
+            <OpencodeModelsContent registry={opencode.state.data.registry} />
+          ) : null}
+          <div className="row">
+            <button className="button" onClick={handleRefresh} disabled={refreshing}>
+              {refreshing ? 'Refreshing…' : 'Refresh from disk'}
+            </button>
+          </div>
+          {refreshError ? <p className="error small">{refreshError}</p> : null}
+          {refreshInfo ? <p className="muted small">{refreshInfo}</p> : null}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function ClaudeModelsContent({
+  data,
+}: {
+  data: {
+    registry: ClaudeModelRegistry
+    filePath: string
+    fileFound: boolean
+    usingDefault: boolean
+    parseError: string | null
+  }
+}) {
+  return (
+    <dl className="kv compact">
+      <dt>File</dt>
+      <dd>
+        <code>{data.filePath}</code>
+        {data.fileFound ? null : <span className="muted"> (missing — using defaults)</span>}
+        {data.usingDefault && data.fileFound ? (
+          <span className="muted"> (parse failed — using defaults)</span>
+        ) : null}
+      </dd>
+      <dt>Aliases</dt>
+      <dd>
+        <div className="tag-row">
+          {Object.entries(data.registry.aliases).map(([alias, info]) => (
+            <span key={alias} className="tag">
+              {alias} → {info.latest}
+            </span>
+          ))}
+        </div>
+      </dd>
+      <dt>Known versions</dt>
+      <dd>
+        <div className="tag-row">
+          {data.registry.knownVersions.map((v) => (
+            <span key={v} className="tag">{v}</span>
+          ))}
+        </div>
+      </dd>
+      {data.parseError ? (
+        <>
+          <dt>Parse error</dt>
+          <dd><span className="error small">{data.parseError}</span></dd>
+        </>
+      ) : null}
+    </dl>
+  )
+}
+
+function OpencodeModelsContent({ registry }: { registry: OpencodeModelRegistry }) {
+  return (
+    <dl className="kv compact">
+      <dt>Detected at</dt>
+      <dd>{registry.detectedAt ? <code>{registry.detectedAt}</code> : <span className="muted">never — click Refresh</span>}</dd>
+      <dt>Models ({registry.models.length})</dt>
+      <dd>
+        {registry.models.length === 0 ? (
+          <span className="muted">none</span>
+        ) : (
+          <div className="tag-row">
+            {registry.models.map((m) => (
+              <span key={`${m.providerId}/${m.modelId}`} className="tag">
+                {m.providerId}/{m.modelId}
+              </span>
+            ))}
+          </div>
+        )}
+      </dd>
+    </dl>
   )
 }
 

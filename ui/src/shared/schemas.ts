@@ -257,3 +257,53 @@ export const HistoryFileSchema = z.object({
   entries: z.array(HistoryEntrySchema),
 })
 export type HistoryFile = z.infer<typeof HistoryFileSchema>
+
+// -----------------------------------------------------------------------
+// Model registries
+// -----------------------------------------------------------------------
+// Two independent registries — one per tool, because the two tools
+// expose models in fundamentally different ways.
+//
+//  • Claude  — static catalog-side list, user-editable, stable. Aliases
+//              (`opus`/`sonnet`/`haiku`) resolve to "latest version" via
+//              Claude Code itself. We ship specific full-ID versions
+//              alongside so the manager can offer explicit pinning.
+//  • Opencode — detected from the user's Opencode install (the cache
+//               file that `opencode models` populates + auth + env).
+//               Lives in the state dir because it's per-machine.
+
+export const ClaudeModelAlias = z.enum(['haiku', 'sonnet', 'opus'])
+export type ClaudeModelAlias = z.infer<typeof ClaudeModelAlias>
+
+export const ClaudeModelAliasEntrySchema = z.object({
+  latest: z.string().min(1), // full ID like "claude-opus-4-7"
+})
+
+export const ClaudeModelRegistrySchema = z.object({
+  schemaVersion: z.literal('1.0'),
+  aliases: z.object({
+    haiku: ClaudeModelAliasEntrySchema,
+    sonnet: ClaudeModelAliasEntrySchema,
+    opus: ClaudeModelAliasEntrySchema,
+  }),
+  knownVersions: z.array(z.string().min(1)),
+})
+export type ClaudeModelRegistry = z.infer<typeof ClaudeModelRegistrySchema>
+
+export const OpencodeModelEntrySchema = z.object({
+  providerId: z.string().min(1),
+  providerName: z.string().optional(),
+  modelId: z.string().min(1),
+  modelName: z.string().optional(),
+  family: z.string().optional(),
+  toolCall: z.boolean(),
+  reasoning: z.boolean().optional(),
+})
+export type OpencodeModelEntry = z.infer<typeof OpencodeModelEntrySchema>
+
+export const OpencodeModelRegistrySchema = z.object({
+  schemaVersion: z.literal('1.0'),
+  detectedAt: z.string().nullable(),
+  models: z.array(OpencodeModelEntrySchema),
+})
+export type OpencodeModelRegistry = z.infer<typeof OpencodeModelRegistrySchema>

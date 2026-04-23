@@ -187,7 +187,7 @@ Opencode. The code handles these asymmetries explicitly — never paper over the
 - **Platforms**: Linux + macOS. Windows is not supported (path + rename
   semantics; `tar` differences).
 
-See `ui/package.json` for exact versions. Current release: **v1.3.0** (bumped in
+See `ui/package.json` for exact versions. Current release: **v1.4.0** (bumped in
 `ui/package.json.version` and `ui/src/server/index.ts` `/api/health.version`).
 
 ---
@@ -204,7 +204,9 @@ See `ui/package.json` for exact versions. Current release: **v1.3.0** (bumped in
 ├── application-guide.json           # factory default: empty targets { CLAUDE.md: [], AGENTS.md: [] }
 ├── .ai-customizer/                  # catalog metadata (template-owned)
 │   ├── catalog.json                 # { schemaVersion, name, createdAt } — used as "is this a catalog root?" marker
-│   └── triggers.json                # the trigger vocabulary (editable from UI)
+│   ├── triggers.json                # the trigger vocabulary (editable from UI)
+│   └── models/
+│       └── claude.json              # static Claude model registry — aliases + known full-ID versions (user-editable; ships with sensible defaults)
 ├── customizations/                  # all user-authored customs live here
 │   ├── skills/<id>/manifest.json
 │   ├── skills/<id>/vX.Y.Z/{claude,opencode}/SKILL.md
@@ -214,7 +216,7 @@ See `ui/package.json` for exact versions. Current release: **v1.3.0** (bumped in
 │       └── vX.Y.Z/{claude,opencode}/{before,after}.md
 ├── manager/                         # the manager agent (shipped with the template, NOT under customizations/)
 │   ├── manifest.json                # { id: "manager", type: "agent", activeVersion }
-│   └── v0.6.0/
+│   └── v0.7.0/
 │       ├── claude/manager.md        # Claude subagent
 │       ├── claude/slash-command.md  # /manager slash command (Claude-only; v1.0.6+)
 │       └── opencode/manager.md      # Opencode primary agent (YAML frontmatter)
@@ -337,6 +339,14 @@ uninstalls the old version's files and installs the new.
 **Skill**. A markdown file (`SKILL.md`) loaded as context by the tool.
 Installed to `~/.claude/skills/<id>/SKILL.md` or
 `~/.config/opencode/skills/<id>/SKILL.md` (global) or project equivalents.
+
+**Model registry**. Two independent registries used by the manager and
+the UI's "change model" feature. Claude: static, catalog-side at
+`.ai-customizer/models/claude.json` (aliases + known full-ID versions).
+Opencode: detected, state-side at `~/.config/ai-customizer/opencode-models.json`,
+refreshable from Settings. Both are read-only from the manager's
+perspective — it NEVER invents IDs outside the relevant registry. See
+§10.9 for the full protocol.
 
 **Agent**. An invocable subagent (Claude) or primary/subagent (Opencode).
 Installed to `~/.claude/agents/<id>.md` or `~/.config/opencode/agent/<id>.md`
@@ -743,7 +753,7 @@ restore the master from `.original`. If `.original` is missing, returns
 removes empty parent directories now uses `pickCleanupBoundary` from
 `fs-utils.ts` with `[home, ...projectPaths]`. Longest-match wins, so the
 walk-up stops at the PROJECT root for project-scoped orphans (even when
-the project sits outside `$HOME`). Before v1.3.0 this used `$HOME` only,
+the project sits outside `$HOME`). Before v1.4.0 this used `$HOME` only,
 which left empty `<project>/.claude/skills/<id>/` dirs behind for
 projects outside `$HOME`. Files were always deleted correctly — the fix
 only affects the empty-directory cleanup tail.
@@ -770,6 +780,10 @@ Base URL: `http://127.0.0.1:3236`. All responses are JSON. Error shape:
 | DELETE | `/api/state/projects/:id[?force=1]`     | delete project (blocked if installations exist unless forced) |
 | GET    | `/api/tools`                            | detection result + effective state (after override) |
 | GET    | `/api/tools/gentle-ai`                  | scans `~/.claude/CLAUDE.md` and `~/.config/opencode/AGENTS.md` for `<!-- gentle-ai:* -->` markers; returns `GentleAiDetection` |
+| GET    | `/api/tools/claude-models`              | returns the static Claude model registry (aliases + knownVersions) from `<catalog>/.ai-customizer/models/claude.json`, falling back to defaults |
+| GET    | `/api/tools/opencode-models`            | returns the last cached Opencode detection from state dir |
+| POST   | `/api/tools/opencode-models/refresh`    | re-runs detection (reads `~/.cache/opencode/models.json` + `~/.local/share/opencode/auth.json` + env), persists to state dir, returns fresh registry |
+| POST   | `/api/customs/agent/:id/model`          | change the `model:` field on an agent's active version. Body `{ claude?: string\|null, opencode?: string\|null, changelogNote? }`. Patch-bumps the version. ONLY UI-driven write into `customizations/**` content |
 | GET    | `/api/installations`                    | all install entries (desired state) |
 | POST   | `/api/installations`                    | upsert install entry |
 | DELETE | `/api/installations/:type/:id`          | remove install entry |
@@ -829,7 +843,7 @@ No global store. Pages use `useAsync(() => api.xxx())` hooks that return
 - **type**: `agent`
 - **category**: `system`
 - **scope**: `global`
-- **activeVersion**: see `manager/manifest.json`. Currently `0.6.0`.
+- **activeVersion**: see `manager/manifest.json`. Currently `0.7.0`.
 
 Not under `customizations/`. Factory-protected. Installed/uninstalled only
 through `/api/manager/*`.
@@ -981,6 +995,51 @@ can opt into a slash-command companion.
   upgrade / uninstall / orphan paths all handle companions naturally
   without special casing.
 
+### 10.9 v0.7.0 protocol additions (over v0.6.0)
+
+Per-agent model assignment. Agents can now be authored with a
+tool-specific `model:` field in their frontmatter (Claude subagent
+body and/or Opencode agent body).
+
+- **Body §2.10 checklist grows to 12 dimensions**:
+  - **Dimension 12 — Model assignment per tool** — one conceptual
+    question asked once, answered per tool. Claude: alias
+    (`opus`/`sonnet`/`haiku`/`inherit`) or full ID (from the
+    `knownVersions` list in the catalog registry). Opencode:
+    `provider/model-id` from the detected registry. Default on both:
+    OMIT the field (inherit). Manager NEVER invents IDs that are not
+    in the relevant registry.
+- **Body §4.4 frontmatter templates** updated with optional `model:`
+  lines for both tool variants.
+- **Two new registries**:
+  - Claude — STATIC, catalog-side at
+    `.ai-customizer/models/claude.json`. User-editable. Shipped with
+    sensible defaults. Exposed via `GET /api/tools/claude-models`.
+  - Opencode — DETECTED, state-side at
+    `~/.config/ai-customizer/opencode-models.json`. Populated on
+    demand by `POST /api/tools/opencode-models/refresh` which reads
+    the user's `~/.cache/opencode/models.json` +
+    `~/.local/share/opencode/auth.json` + env vars (same algorithm
+    gentle-ai uses). Filters to providers authenticated AND with at
+    least one `tool_call` model.
+- **New UI feature (Settings → Models)**: shows both registries side
+  by side. Claude block displays aliases + known versions (read-only,
+  user edits the JSON directly). Opencode block lists detected models
+  + Refresh button.
+- **New UI feature (CustomDetail → Model assignment)**: for agents
+  ONLY, a per-tool dropdown (Claude + Opencode) lets the user change
+  the model. Saving calls `POST /api/customs/agent/:id/model` with
+  `{ claude?, opencode? }` (value | `null` to unset | omitted to skip
+  that tool). Server PATCH-BUMPS the version: clones the activeVersion
+  folder to `v<current+0.0.1>/`, rewrites `model:` in each targeted
+  per-tool body, appends a new entry to `manifest.versions[]`, and
+  bumps `activeVersion`. This is the ONLY UI-driven write into
+  `customizations/**` content — explicitly the single exception to
+  the rule (see §6.10 "Never commit user state"). Next Apply then
+  installs the new version.
+- **Installer impact**: zero new code paths. Model changes are just
+  version bumps; the general upgrade flow handles them.
+
 ### 10.2 Claude-only slash command (v1.0.6+)
 
 Installing the manager on Claude creates **two** files:
@@ -995,7 +1054,7 @@ slash commands, so its install is a single file.
 **Slash-command pattern (general)**. If you need to ship a slash command for
 something other than the manager, the pattern is:
 - A markdown file at `~/.claude/commands/<name>.md` with YAML frontmatter
-  (see `manager/v0.6.0/claude/slash-command.md` for the canonical example).
+  (see `manager/v0.7.0/claude/slash-command.md` for the canonical example).
 - The body typically delegates to a subagent or runs instructions in the
   primary — it's just a prompt template Claude invokes on `/<name>`.
 - Installation goes through the same `ManagerAsset`-style 2-asset atomic
@@ -1016,7 +1075,7 @@ or edit a custom:
 5. **Content templates** — use the shipped templates for SKILL.md / agent.md /
    before.md+after.md shapes.
 
-Read `manager/v0.6.0/claude/manager.md` for the full current text. DO NOT
+Read `manager/v0.7.0/claude/manager.md` for the full current text. DO NOT
 hand-edit this in the catalog; bump a new version folder instead.
 
 ---
@@ -1058,12 +1117,12 @@ at new content — prior installs surface as orphans until cleaned up.
 
 ## 12. Release and versioning
 
-Current version: **v1.3.0**. Semver.
+Current version: **v1.4.0**. Semver.
 
 **Bump locations** (update all on release):
 1. `ui/package.json.version`
 2. `ui/src/server/index.ts` inside `/api/health` response (`version: '1.0.7'`)
-3. Status line in `README.md` (`Status: v1.3.0.`)
+3. Status line in `README.md` (`Status: v1.4.0.`)
 
 **Commit pattern**: conventional commits, English. Examples from git log:
 - `feat: add install.sh and update.sh scripts, bump to v1.0.7`

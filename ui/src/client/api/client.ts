@@ -15,9 +15,11 @@ import type {
   TrackerResponse,
 } from '../../shared/types'
 import type {
+  ClaudeModelRegistry,
   CustomType,
   InstallableType,
   InstallationEntry,
+  OpencodeModelRegistry,
   ProjectCreateInput,
   ProjectEntry,
   ProjectUpdateInput,
@@ -93,6 +95,32 @@ export const api = {
 
   tools: () => request<{ detection: ToolsDetectionResponse; effective: EffectiveToolState }>('/api/tools'),
   gentleAi: () => request<GentleAiDetection>('/api/tools/gentle-ai'),
+  claudeModels: () =>
+    request<{
+      registry: ClaudeModelRegistry
+      filePath: string
+      fileFound: boolean
+      usingDefault: boolean
+      parseError: string | null
+    }>('/api/tools/claude-models'),
+  opencodeModels: () =>
+    request<{ registry: OpencodeModelRegistry }>('/api/tools/opencode-models'),
+  refreshOpencodeModels: () =>
+    jsonPost<{
+      registry: OpencodeModelRegistry
+      sourcePaths: { cachePath: string; cacheFound: boolean; authPath: string; authFound: boolean }
+      availableProviders: string[]
+    }>('/api/tools/opencode-models/refresh', {}),
+  changeAgentModel: (
+    id: string,
+    body: { claude?: string | null; opencode?: string | null; changelogNote?: string },
+  ) =>
+    jsonPost<{
+      fromVersion: string
+      toVersion: string
+      activeVersion: string
+      touchedFiles: string[]
+    }>(`/api/customs/agent/${encodeURIComponent(id)}/model`, body),
 
   installations: () => request<InstallationsResponse>('/api/installations'),
   upsertInstallation: (entry: InstallationEntry) =>

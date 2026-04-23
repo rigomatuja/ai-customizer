@@ -1,7 +1,11 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { CustomType } from '../../shared/schemas'
+import type { ClaudeModelRegistry, OpencodeModelRegistry } from '../../shared/schemas'
+import { api, ApiClientError } from '../api/client'
 import { ErrorBadge } from '../components/ErrorBadge'
 import { InstallControls } from '../components/InstallControls'
+import { useAsyncWithRefetch } from '../hooks/useAsync'
 import { useCustomDetail } from '../hooks/useCustom'
 
 export function CustomDetail() {
@@ -9,7 +13,7 @@ export function CustomDetail() {
   const typeParse = CustomType.safeParse(typeParam)
   const effectiveType = typeParse.success ? typeParse.data : 'skill'
   const effectiveId = id ?? ''
-  const state = useCustomDetail(effectiveType, effectiveId)
+  const { state, refetch } = useCustomDetail(effectiveType, effectiveId)
 
   if (!typeParse.success || !id) {
     return (
@@ -108,6 +112,14 @@ export function CustomDetail() {
             </dl>
           </section>
 
+          {m.type === 'agent' ? (
+            <AgentModelPanel
+              customId={detail.id}
+              activeVersion={m.activeVersion}
+              onChanged={refetch}
+            />
+          ) : null}
+
           {m.type !== 'patch' && m.hook ? (
             <section className="panel">
               <h2>Hook</h2>
@@ -199,5 +211,193 @@ export function CustomDetail() {
         </section>
       )}
     </main>
+  )
+}
+
+// -----------------------------------------------------------------------
+// Agent-only: change the `model:` field in the subagent/primary body.
+// Patch-bumps the version. This is the ONE UI-driven write into
+// customizations/** content — see docs/llm.md for the rationale.
+// -----------------------------------------------------------------------
+
+interface AgentModelPanelProps {
+  customId: string
+  activeVersion: string
+  onChanged: () => void
+}
+
+const DO_NOT_CHANGE = '__unchanged__'
+const INHERIT = '__inherit__'
+
+function AgentModelPanel({ customId, activeVersion, onChanged }: AgentModelPanelProps) {
+  const claudeReg = useAsyncWithRefetch(() => api.claudeModels(), [])
+  const opencodeReg = useAsyncWithRefetch(() => api.opencodeModels(), [])
+
+  const [claudeChoice, setClaudeChoice] = useState<string>(DO_NOT_CHANGE)
+  const [opencodeChoice, setOpencodeChoice] = useState<string>(DO_NOT_CHANGE)
+  const [note, setNote] = useState<string>('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [info, setInfo] = useState<string | null>(null)
+
+  const handleSave = async () => {
+    setSaving(true)
+    setError(null)
+    setInfo(null)
+    const body: {
+      claude?: string | null
+      opencode?: string | null
+      changelogNote?: string
+    } = {}
+    if (claudeChoice !== DO_NOT_CHANGE) {
+      body.claude = claudeChoice === INHERIT ? null : claudeChoice
+    }
+    if (opencodeChoice !== DO_NOT_CHANGE) {
+      body.opencode = opencodeChoice === INHERIT ? null : opencodeChoice
+    }
+    if (body.claude === undefined && body.opencode === undefined) {
+      setError('Pick at least one change (claude or opencode).')
+      setSaving(false)
+      return
+    }
+    if (note.trim()) body.changelogNote = note.trim()
+    try {
+      const result = await api.changeAgentModel(customId, body)
+      setInfo(`Patched v${result.fromVersion} → v${result.toVersion}. activeVersion bumped.`)
+      setClaudeChoice(DO_NOT_CHANGE)
+      setOpencodeChoice(DO_NOT_CHANGE)
+      setNote('')
+      onChanged()
+    } catch (err) {
+      setError(err instanceof ApiClientError ? err.message : String(err))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <section className="panel">
+      <h2>Model assignment</h2>
+      <p className="muted small">
+        Changing a model creates a patch-bump of <code>v{activeVersion}</code>. Pick
+        new values per tool, or leave <em>unchanged</em>. <code>inherit</code> removes
+        the <code>model:</code> field entirely so the tool falls back to its default.
+      </p>
+
+      <div className="tool-detection-grid">
+        <div className="tool-card">
+          <div className="tool-card-head"><strong>Claude</strong></div>
+          {claudeReg.state.status !== 'success' ? (
+            <p className="muted small">Loading registry…</p>
+          ) : (
+            <ClaudeModelSelect
+              registry={claudeReg.state.data.registry}
+              value={claudeChoice}
+              onChange={setClaudeChoice}
+            />
+          )}
+        </div>
+
+        <div className="tool-card">
+          <div className="tool-card-head"><strong>Opencode</strong></div>
+          {opencodeReg.state.status !== 'success' ? (
+            <p className="muted small">Loading registry…</p>
+          ) : (
+            <OpencodeModelSelect
+              registry={opencodeReg.state.data.registry}
+              value={opencodeChoice}
+              onChange={setOpencodeChoice}
+            />
+          )}
+        </div>
+      </div>
+
+      <label className="tool-override">
+        Changelog note (optional):{' '}
+        <input
+          type="text"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Why this model change?"
+          style={{ width: '100%', marginTop: '0.25rem' }}
+        />
+      </label>
+
+      <div className="row">
+        <button className="button" onClick={handleSave} disabled={saving}>
+          {saving ? 'Saving…' : 'Save (patch-bump)'}
+        </button>
+      </div>
+      {error ? <p className="error small">{error}</p> : null}
+      {info ? <p className="muted small">{info}</p> : null}
+    </section>
+  )
+}
+
+function ClaudeModelSelect({
+  registry,
+  value,
+  onChange,
+}: {
+  registry: ClaudeModelRegistry
+  value: string
+  onChange: (v: string) => void
+}) {
+  const aliases = Object.entries(registry.aliases)
+  const versions = registry.knownVersions
+  return (
+    <select className="button-secondary" value={value} onChange={(e) => onChange(e.target.value)}>
+      <option value={DO_NOT_CHANGE}>— leave unchanged —</option>
+      <option value={INHERIT}>inherit (remove model field)</option>
+      <optgroup label="Aliases (latest of tier)">
+        {aliases.map(([alias, info]) => (
+          <option key={alias} value={alias}>
+            {alias} → {info.latest}
+          </option>
+        ))}
+      </optgroup>
+      <optgroup label="Pinned versions">
+        {versions.map((v) => (
+          <option key={v} value={v}>
+            {v}
+          </option>
+        ))}
+      </optgroup>
+    </select>
+  )
+}
+
+function OpencodeModelSelect({
+  registry,
+  value,
+  onChange,
+}: {
+  registry: OpencodeModelRegistry
+  value: string
+  onChange: (v: string) => void
+}) {
+  const byProvider = new Map<string, typeof registry.models>()
+  for (const m of registry.models) {
+    const arr = byProvider.get(m.providerId) ?? []
+    arr.push(m)
+    byProvider.set(m.providerId, arr)
+  }
+  return (
+    <select className="button-secondary" value={value} onChange={(e) => onChange(e.target.value)}>
+      <option value={DO_NOT_CHANGE}>— leave unchanged —</option>
+      <option value={INHERIT}>inherit (remove model field)</option>
+      {registry.models.length === 0 ? (
+        <option disabled>no models detected — refresh from Settings</option>
+      ) : null}
+      {[...byProvider.entries()].map(([provider, models]) => (
+        <optgroup key={provider} label={provider}>
+          {models.map((m) => (
+            <option key={`${m.providerId}/${m.modelId}`} value={`${m.providerId}/${m.modelId}`}>
+              {m.modelName ?? m.modelId}
+            </option>
+          ))}
+        </optgroup>
+      ))}
+    </select>
   )
 }

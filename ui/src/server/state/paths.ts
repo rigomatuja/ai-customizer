@@ -22,6 +22,7 @@ export function userConfigPaths() {
     installState: path.join(root, 'install-state.json'),
     history: path.join(root, 'history.json'),
     hookRegistry: path.join(root, 'hook-registry.json'),
+    opencodeModels: path.join(root, 'opencode-models.json'),
     backups: path.join(root, 'backups'),
     lock: path.join(root, '.lock'),
   }
