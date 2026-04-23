@@ -20,7 +20,12 @@
       "version": "0.3.0",
       "createdAt": "2026-04-23T00:00:00Z",
       "changelog": "Skill creation now produces proper YAML frontmatter per tool: Claude gets full schema (name, description, optional when_to_use/paths/allowed-tools/etc.) for semantic auto-activation and paths-based triggers; Opencode gets reduced schema (name, description, optional license/compatibility/metadata) — Claude-only fields stripped from the mirror to avoid misleading readers. New Paso 2.11 collaborative questions for skill frontmatter (description + optional paths). Paso 4.3 rewritten with the mandatory frontmatter block and writing guidance (front-load use case, 1536-char budget, paths is Claude-only)."
+    },
+    {
+      "version": "0.4.0",
+      "createdAt": "2026-04-23T00:00:00Z",
+      "changelog": "Paso 2.11 rewritten: manager no longer asks the user for the skill's description or paths verbatim. Instead it gathers requirements conversationally (what the skill does, when it fires, file-match vs semantic scope), DRAFTS the frontmatter itself, and PROPOSES it for field-level confirmation/correction before Show-before-write. Same propose-don't-decide pattern as patch auto-detection and project inference. Draft rules added: description front-loads WHEN + WHAT under 180 chars target, paths inferred from stated trigger only (narrow first), Claude and Opencode descriptions stay identical."
     }
   ],
-  "activeVersion": "0.3.0"
+  "activeVersion": "0.4.0"
 }
