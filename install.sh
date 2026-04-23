@@ -2,9 +2,10 @@
 #
 # AI Customizer — installer
 #
-# Does steps 2 and 3 from the README:
-#   2. cd ui && npm install
-#   3. npm run dev
+# Idempotent. Safe to rerun any number of times:
+#   - If the UI is already running → no-op, prints where to reach it.
+#   - If UI deps are already installed → npm install is a fast no-op.
+#   - Otherwise → installs deps and launches the dev server in foreground.
 #
 # Assumes you've already cloned this repo. Run from the catalog root:
 #   ./install.sh
@@ -60,11 +61,37 @@ if [ ! -d "ui" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Install UI dependencies
+# Idempotency: is the UI already running?
+#
+# Probe both the Hono server port (3000) and the Vite client port (5173)
+# via bash's built-in /dev/tcp. If either is bound, assume a prior install
+# is running and bail out with a friendly no-op.
+# ---------------------------------------------------------------------------
+
+port_is_open() {
+  local port="$1"
+  (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null && { exec 3<&- 3>&-; return 0; }
+  return 1
+}
+
+if port_is_open 3000 || port_is_open 5173; then
+  echo ""
+  echo "[i] The AI Customizer UI appears to be already running:"
+  port_is_open 3000 && echo "    Hono server:  http://127.0.0.1:3000"
+  port_is_open 5173 && echo "    UI (browser): http://127.0.0.1:5173"
+  echo ""
+  echo "    Nothing to do. To restart: stop the running instance"
+  echo "    (Ctrl+C in the terminal holding it) and rerun ./install.sh."
+  exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# Install UI dependencies (npm install is itself idempotent — fast no-op
+# when everything matches package-lock.json)
 # ---------------------------------------------------------------------------
 
 echo ""
-echo "==> Installing UI dependencies (may take a minute)..."
+echo "==> Ensuring UI dependencies..."
 ( cd ui && npm install )
 
 # ---------------------------------------------------------------------------

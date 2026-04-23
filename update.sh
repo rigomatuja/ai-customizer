@@ -3,11 +3,17 @@
 # AI Customizer — updater
 #
 # Pulls the latest template files from the official upstream repo
-# WITHOUT touching anything you've created locally.
+# WITHOUT touching anything you've created locally, then ensures UI deps
+# are installed and offers to launch the UI.
+#
+# Idempotent. Safe to rerun — with no upstream changes and no dep drift,
+# it prints "no changes" and exits (or offers to launch the UI if one
+# isn't already running).
 #
 # Files that get overwritten (upstream wins):
-#   ui/         manager/         docs/
-#   README.md   LICENSE          .gitignore
+#   ui/                 manager/                docs/
+#   .claude/skills/     .opencode/skills/
+#   README.md           LICENSE                 .gitignore
 #
 # Files that are NEVER touched (your state stays put):
 #   customizations/**
@@ -32,6 +38,8 @@ UPDATE_PATHS=(
   "ui"
   "manager"
   "docs"
+  ".claude/skills"
+  ".opencode/skills"
   "README.md"
   "LICENSE"
   ".gitignore"
@@ -91,7 +99,7 @@ fi
 if ! git diff --quiet || ! git diff --cached --quiet; then
   echo ""
   echo "[!] Working tree has uncommitted changes."
-  echo "    Updating will overwrite upstream-managed paths (ui/, manager/, docs/, README.md, LICENSE, .gitignore)."
+  echo "    Updating will overwrite upstream-managed paths."
   echo "    Any changes to THOSE paths will be lost."
   echo ""
   read -r -p "Continue anyway? [y/N] " reply
@@ -118,42 +126,101 @@ UPSTREAM_REF="$UPSTREAM_REMOTE/$UPSTREAM_BRANCH"
 echo ""
 echo "==> Pulling upstream files..."
 
-updated_paths=()
-missing_paths=()
-
 for path in "${UPDATE_PATHS[@]}"; do
   if git cat-file -e "$UPSTREAM_REF:$path" 2>/dev/null; then
     git checkout "$UPSTREAM_REF" -- "$path"
     echo "    [✓] $path"
-    updated_paths+=("$path")
   else
     echo "    [·] $path — not in upstream, skipping"
-    missing_paths+=("$path")
   fi
 done
+
+# ---------------------------------------------------------------------------
+# Determine whether anything actually changed (idempotency visibility)
+# ---------------------------------------------------------------------------
+
+CHANGED_FILES=$(git diff --cached --name-only 2>/dev/null || true)
+if [ -z "$CHANGED_FILES" ]; then
+  echo ""
+  echo "[i] Already up to date — upstream matched your local copy. No-op."
+  UPDATE_HAD_CHANGES=0
+else
+  UPDATE_HAD_CHANGES=1
+fi
+
+# ---------------------------------------------------------------------------
+# Ensure UI deps (idempotent — npm install no-ops when lockfile matches)
+# ---------------------------------------------------------------------------
+
+UI_DEPS_SYNCED=0
+if [ -d "ui" ] && [ -f "ui/package.json" ]; then
+  echo ""
+  if [ "$UPDATE_HAD_CHANGES" = "1" ] && echo "$CHANGED_FILES" | grep -qE '^ui/(package\.json|package-lock\.json)$'; then
+    echo "==> ui/package.json changed — running npm install..."
+  else
+    echo "==> Ensuring UI dependencies (fast no-op when already synced)..."
+  fi
+  ( cd ui && npm install )
+  UI_DEPS_SYNCED=1
+fi
 
 # ---------------------------------------------------------------------------
 # Post-update hints
 # ---------------------------------------------------------------------------
 
-echo ""
-echo "==> Update complete."
-echo ""
+if [ "$UPDATE_HAD_CHANGES" = "1" ]; then
+  echo ""
+  echo "==> Update complete. Files changed:"
+  echo "$CHANGED_FILES" | sed 's/^/      /'
+  echo ""
 
-# Hint: reinstall UI deps if package files changed.
-if git diff --cached --name-only 2>/dev/null | grep -qE '^ui/(package\.json|package-lock\.json)$'; then
-  echo "  → ui/package.json or package-lock.json changed."
-  echo "    Run:  cd ui && npm install"
+  if echo "$CHANGED_FILES" | grep -q '^manager/'; then
+    echo "  → manager/ sources changed."
+    echo "    Open the UI → Settings → Manager → Reinstall to pick up the new version."
+    echo ""
+  fi
+
+  echo "  Review changes:   git status && git diff --cached"
+  echo "  Commit when ready: git commit -m \"chore: sync upstream template\""
   echo ""
 fi
 
-# Hint: reinstall manager if its sources changed.
-if git diff --cached --name-only 2>/dev/null | grep -q '^manager/'; then
-  echo "  → manager/ sources changed."
-  echo "    Open the UI → Settings → Manager → Reinstall to pick up the new version."
-  echo ""
+# ---------------------------------------------------------------------------
+# Offer to launch the UI (skipped when an instance is already running)
+# ---------------------------------------------------------------------------
+
+port_is_open() {
+  local port="$1"
+  (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null && { exec 3<&- 3>&-; return 0; }
+  return 1
+}
+
+if port_is_open 3000 || port_is_open 5173; then
+  echo "[i] UI already running — skipping launch prompt."
+  port_is_open 3000 && echo "    Hono server:  http://127.0.0.1:3000"
+  port_is_open 5173 && echo "    UI (browser): http://127.0.0.1:5173"
+  exit 0
 fi
 
-echo "  Review changes:   git status && git diff --cached"
-echo "  Commit when ready: git commit -m \"chore: sync upstream template\""
+if [ "$UI_DEPS_SYNCED" != "1" ]; then
+  exit 0
+fi
+
 echo ""
+read -r -p "Launch the UI now? [Y/n] " launch_reply
+case "$launch_reply" in
+  n|N|no|NO)
+    echo ""
+    echo "  OK. Start it later with:  ./install.sh  (or:  cd ui && npm run dev)"
+    exit 0
+    ;;
+  *)
+    echo ""
+    echo "==> Starting the UI — Ctrl+C to stop"
+    echo "    Hono server:  http://127.0.0.1:3000"
+    echo "    UI (browser): http://127.0.0.1:5173   ← open this"
+    echo ""
+    cd ui
+    exec npm run dev
+    ;;
+esac

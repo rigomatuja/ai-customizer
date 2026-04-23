@@ -35,6 +35,7 @@ section points you there.
 19. [Gotchas (things that will bite you)](#19-gotchas-things-that-will-bite-you)
 20. [Quick navigation (where to edit what)](#20-quick-navigation-when-you-need-it)
 21. [Where this document is out of date](#21-where-this-document-is-out-of-date)
+22. [System skills (template-side)](#22-system-skills-template-side)
 
 ---
 
@@ -220,6 +221,18 @@ See `ui/package.json` for exact versions. Current release: **v1.1.0** (bumped in
 ├── docs/
 │   ├── DESIGN.md                    # full design spec (schemas, decisions, roadmap)
 │   └── llm.md                       # THIS FILE
+├── .claude/skills/                  # system skills for Claude Code (auto-activated via `paths` frontmatter — see §22)
+│   ├── readme-sync/SKILL.md
+│   ├── llm-sync/SKILL.md
+│   ├── ui-design/SKILL.md
+│   ├── api-dev/SKILL.md
+│   └── manager-sync/SKILL.md
+├── .opencode/skills/                # mirrors of the above for Opencode (no `paths`; semantic-match only)
+│   ├── readme-sync/SKILL.md
+│   ├── llm-sync/SKILL.md
+│   ├── ui-design/SKILL.md
+│   ├── api-dev/SKILL.md
+│   └── manager-sync/SKILL.md
 └── ui/                              # the local web UI (Hono + Vite + React)
     ├── package.json                 # version lives here and must be bumped on release
     ├── vite.config.ts               # strictPort: true on 5173; proxies /api to 127.0.0.1:3000
@@ -938,9 +951,13 @@ The UI detects the mismatch and offers Reinstall in Settings.
 
 ### 13.1 `install.sh`
 
+- Idempotent. Safe to rerun; probes ports `3000` + `5173` via bash
+  `/dev/tcp`. If either is bound, prints "already running" and exits 0
+  (no-op).
 - Checks `node` (v20+), `npm`, `git` on PATH.
 - Verifies `.ai-customizer/catalog.json` and `ui/` exist.
-- `cd ui && npm install`.
+- `cd ui && npm install` (npm's own idempotency makes this a fast no-op
+  when `package-lock.json` already matches).
 - `exec npm run dev` in foreground (Ctrl+C to stop).
 
 ### 13.2 `update.sh`
@@ -950,11 +967,19 @@ The UI detects the mismatch and offers Reinstall in Settings.
   exists with a different URL (won't silently redirect).
 - Warns on dirty working tree, asks to continue.
 - `git fetch upstream main` then `git checkout upstream/main -- <path>` for
-  each of: `ui`, `manager`, `docs`, `README.md`, `LICENSE`, `.gitignore`.
+  each of: `ui`, `manager`, `docs`, `.claude/skills`, `.opencode/skills`,
+  `README.md`, `LICENSE`, `.gitignore`.
 - **Never** touches `customizations/**`, `application-guide.json`,
   `.ai-customizer/triggers.json`, `.ai-customizer/catalog.json`.
-- Leaves changes staged in the working tree; prints hints (`npm install` if
-  `ui/package.json` changed; Settings → Reinstall if `manager/` changed).
+- After checkout: detects whether anything actually changed and prints a
+  visible `[i] Already up to date — no-op` when there are no diffs.
+- Always runs `cd ui && npm install` after checkout (idempotent; skipped
+  if `ui/` doesn't exist).
+- At the end, if no UI is already running, prompts `Launch the UI now?
+  [Y/n]`. Y → `exec npm run dev`. N → prints the manual command and
+  exits.
+- Leaves changes staged in the working tree; prints hints (Settings →
+  Reinstall if `manager/` changed).
 - Does not auto-commit.
 
 ---
@@ -1104,6 +1129,10 @@ From `DESIGN.md` §12 and README "Not in v1":
 - Bump a release → §12.
 - Reset local state for testing → stop UI, `rm -rf ~/.config/ai-customizer/`,
   restart.
+- **Read the matching system skill** before editing an area: when you
+  touch `ui/src/client/**` read `.claude/skills/ui-design/SKILL.md`,
+  when you touch `ui/src/server/**` or `ui/src/shared/**` read
+  `.claude/skills/api-dev/SKILL.md`, and so on. See §22.
 
 ---
 
@@ -1122,3 +1151,51 @@ When you update this doc, keep the structure (numbered sections, tables
 where they fit, invariants in §6). An agent reading it should be able to
 tell in one pass whether a given fact is described here or delegated to
 another file.
+
+---
+
+## 22. System skills (template-side)
+
+The repo ships five "system skills" at `.claude/skills/<name>/SKILL.md`
+(and mirrored at `.opencode/skills/<name>/SKILL.md`) for agents working
+on the TEMPLATE ITSELF — not for users of the catalog. They are NOT
+installable via the UI. They are auto-discovered by Claude Code and
+Opencode from those canonical paths.
+
+**How auto-activation works**:
+- **Claude Code** — every SKILL.md declares a `paths` frontmatter
+  field with glob patterns. Claude Code auto-loads a skill ONLY when
+  the agent is editing/reading files matching those globs. This is
+  the precise "load when touching X" mechanism.
+- **Opencode** — ignores the `paths` field (Claude Code-only). Opencode
+  only matches skills semantically against the `description`. The
+  mirrored Opencode SKILL.md files have the `paths` block stripped and
+  a comment noting the limitation.
+
+**The five skills**:
+
+| Skill | Trigger (Claude Code `paths`) | Purpose |
+|---|---|---|
+| `readme-sync` | `README.md`, `install.sh`, `update.sh`, `ui/package.json`, `ui/src/server/index.ts`, `manager/manifest.json` | Keep the user-facing README in sync with reality. |
+| `llm-sync` | `ui/**`, `manager/**`, `docs/**`, scripts, `.ai-customizer/**`, `application-guide.json`, `.claude/skills/**`, `.opencode/skills/**` | Keep THIS file (`docs/llm.md`) authoritative after any system change. Broadest scope. |
+| `ui-design` | `ui/src/client/**`, `ui/src/shared/types.ts`, `ui/vite.config.ts`, `ui/index.html`, `ui/package.json` | React/Vite patterns, CSS class naming, page/panel structure, async-hook usage, primitive components. |
+| `api-dev` | `ui/src/server/**`, `ui/src/shared/**`, `ui/src/client/api/**` | Hono route layout, Zod schema-first validation, error contract, atomic writes, per-key mutex, 4-step endpoint add flow. |
+| `manager-sync` | `manager/**`, `ui/src/server/installer/manager-install.ts`, `ui/src/server/routes/manager.ts`, `ui/src/client/pages/Settings.tsx` | Version-bump procedure for the manager: new `vX.Y.Z/` folder, mirror Claude↔Opencode, update manifest + §10, verify section numbering, test via Reinstall. |
+
+**Upstream propagation**: `.claude/skills/` and `.opencode/skills/` are
+in `update.sh`'s `UPDATE_PATHS` — they ship with the template and
+update on `./update.sh`. Users who modify a system skill locally will
+see their changes overwritten on the next update (same semantics as
+`ui/`, `manager/`, `docs/`).
+
+**Adding a new system skill**:
+1. Create `.claude/skills/<name>/SKILL.md` with `name`, `description`,
+   and `paths` in the frontmatter.
+2. Write the body following the existing skill structure (`## When I'm
+   loaded`, `## Execution rule`, `## What I do`, `## Rules`,
+   `## Anti-patterns`, `## References`).
+3. Mirror to `.opencode/skills/<name>/SKILL.md` with `paths` stripped
+   and the Opencode-limitation comment added.
+4. Add a row to the table above.
+5. If the new skill affects llm-sync's scope, extend llm-sync's `paths`
+   accordingly.
