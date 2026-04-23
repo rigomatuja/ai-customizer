@@ -4,8 +4,9 @@ import type { Tool } from '../../shared/schemas'
 import { readGuide, writeGuide } from '../catalog/guide'
 import type { LoadedCatalog } from '../catalog/loader'
 import { getCatalogPath } from '../catalog/paths'
+import { listProjects } from '../state/projects'
 import { readTracker, withTrackerLock, writeTracker } from '../state/tracker'
-import { deleteFileAndCleanup } from './fs-utils'
+import { deleteFileAndCleanup, pickCleanupBoundary } from './fs-utils'
 
 export type OrphanKind = 'skill-or-agent' | 'patch'
 
@@ -122,6 +123,12 @@ async function forceUninstallOrphanImpl(
   }
 
   const home = os.homedir()
+  // Include registered project roots so walk-up cleanup respects project
+  // boundaries for project-scoped orphans. Without this, force-uninstall
+  // of an orphan outside $HOME would leave empty directories behind
+  // (the file gets unlinked, but the walk-up never enters its loop).
+  const projects = await listProjects()
+  const cleanupStops = [home, ...projects.map((p) => p.path)]
 
   // Collect per-op (path, opId) and process each. Only drop tracker
   // ops whose delete succeeded — leaves partial state consistent and
@@ -137,7 +144,7 @@ async function forceUninstallOrphanImpl(
     }
     try {
       if (existsSync(op.toPath)) {
-        await deleteFileAndCleanup(op.toPath, home)
+        await deleteFileAndCleanup(op.toPath, pickCleanupBoundary(op.toPath, cleanupStops))
         deletedPaths.push(op.toPath)
       }
       succeededOpIds.add(op.opId)

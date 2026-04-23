@@ -21,7 +21,7 @@ import { log } from '../logging'
 import { appendHistory } from '../state/history'
 import { readTracker, withTrackerLock, writeTracker } from '../state/tracker'
 import { createBackup, restoreBackup } from './backup'
-import { copyFile, deleteFileAndCleanup, hashFile } from './fs-utils'
+import { copyFile, deleteFileAndCleanup, hashFile, pickCleanupBoundary } from './fs-utils'
 import { regenerateHookRegistries } from './hook-registry'
 import { executePatchApply } from './patches'
 
@@ -131,9 +131,7 @@ async function executePlanImpl(input: ExecutionInput): Promise<ApplyResponse> {
 
   const home = os.homedir()
   const cleanupStops = [home, ...projectPaths]
-  const findStopFor = (destPath: string) => {
-    return cleanupStops.find((s) => destPath.startsWith(s + '/')) ?? home
-  }
+  const findStopFor = (destPath: string) => pickCleanupBoundary(destPath, cleanupStops)
 
   const appliedPatches: Array<{ op: PlanPatchOp; tracker: PatchTrackerOp }> = []
 

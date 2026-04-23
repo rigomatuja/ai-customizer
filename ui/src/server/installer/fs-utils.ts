@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import fs from 'node:fs/promises'
+import os from 'node:os'
 import path from 'node:path'
 
 export async function ensureDir(dir: string): Promise<void> {
@@ -66,6 +67,31 @@ export async function deleteFileAndCleanup(target: string, stopAt: string): Prom
     }
     dir = path.dirname(dir)
   }
+}
+
+/**
+ * Pick the correct walk-up boundary for `deleteFileAndCleanup`.
+ *
+ * Given candidate roots (typically `[home, ...projectPaths]`), return
+ * the LONGEST one that is a strict ancestor of `destPath`. Longest-match
+ * is important when a project is nested under `$HOME` — we want the
+ * walk-up to stop at the PROJECT root, not at `$HOME`.
+ *
+ * Falls back to `$HOME` when no candidate matches. This is a safety
+ * net: callers should pass a list that covers every scope they might
+ * have installed to.
+ */
+export function pickCleanupBoundary(destPath: string, candidates: string[]): string {
+  const home = os.homedir()
+  let best: string | null = null
+  for (const c of candidates) {
+    if (!c) continue
+    // `c + path.sep` prevents `/foo` from matching `/foobar`.
+    if (destPath.startsWith(c + path.sep) && (!best || c.length > best.length)) {
+      best = c
+    }
+  }
+  return best ?? home
 }
 
 export async function hashFile(filePath: string): Promise<string> {
