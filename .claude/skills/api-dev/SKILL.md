@@ -25,7 +25,7 @@ don't skip any step.
 
 ## Stack
 
-- Hono on `@hono/node-server`. Single process, port 3000 by default.
+- Hono on `@hono/node-server`. Single process, port 3236 by default.
 - Zod 3.x for ALL request/response validation and file I/O validation.
 - TypeScript types derived from Zod via `z.infer` — never hand-write a
   type that a schema could generate.

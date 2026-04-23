@@ -209,10 +209,10 @@ port_is_open() {
   return 1
 }
 
-if port_is_open 3000 || port_is_open 5173; then
+if port_is_open 3236 || port_is_open 5256; then
   echo "[i] UI already running — skipping launch prompt."
-  port_is_open 3000 && echo "    Hono server:  http://127.0.0.1:3000"
-  port_is_open 5173 && echo "    UI (browser): http://127.0.0.1:5173"
+  port_is_open 3236 && echo "    Hono server:  http://127.0.0.1:3236"
+  port_is_open 5256 && echo "    UI (browser): http://127.0.0.1:5256"
   exit 0
 fi
 
@@ -231,8 +231,8 @@ case "$launch_reply" in
   *)
     echo ""
     echo "==> Starting the UI — Ctrl+C to stop"
-    echo "    Hono server:  http://127.0.0.1:3000"
-    echo "    UI (browser): http://127.0.0.1:5173   ← open this"
+    echo "    Hono server:  http://127.0.0.1:3236"
+    echo "    UI (browser): http://127.0.0.1:5256   ← open this"
     echo ""
     cd ui
     exec npm run dev

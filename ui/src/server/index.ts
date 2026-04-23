@@ -37,7 +37,7 @@ app.route('/api/hook-registry', hookRegistryRoutes)
 app.route('/api/manager', managerRoutes)
 app.route('/api/orphans', orphansRoutes)
 
-const port = Number(process.env.PORT) || 3000
+const port = Number(process.env.PORT) || 3236
 const hostname = '127.0.0.1'
 
 async function bootstrap() {

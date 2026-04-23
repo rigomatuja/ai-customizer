@@ -63,7 +63,7 @@ fi
 # ---------------------------------------------------------------------------
 # Idempotency: is the UI already running?
 #
-# Probe both the Hono server port (3000) and the Vite client port (5173)
+# Probe both the Hono server port (3236) and the Vite client port (5256)
 # via bash's built-in /dev/tcp. If either is bound, assume a prior install
 # is running and bail out with a friendly no-op.
 # ---------------------------------------------------------------------------
@@ -74,11 +74,11 @@ port_is_open() {
   return 1
 }
 
-if port_is_open 3000 || port_is_open 5173; then
+if port_is_open 3236 || port_is_open 5256; then
   echo ""
   echo "[i] The AI Customizer UI appears to be already running:"
-  port_is_open 3000 && echo "    Hono server:  http://127.0.0.1:3000"
-  port_is_open 5173 && echo "    UI (browser): http://127.0.0.1:5173"
+  port_is_open 3236 && echo "    Hono server:  http://127.0.0.1:3236"
+  port_is_open 5256 && echo "    UI (browser): http://127.0.0.1:5256"
   echo ""
   echo "    Nothing to do. To restart: stop the running instance"
   echo "    (Ctrl+C in the terminal holding it) and rerun ./install.sh."
@@ -100,8 +100,8 @@ echo "==> Ensuring UI dependencies..."
 
 echo ""
 echo "==> Starting the UI — Ctrl+C to stop"
-echo "    Hono server:  http://127.0.0.1:3000"
-echo "    UI (browser): http://127.0.0.1:5173   ← open this"
+echo "    Hono server:  http://127.0.0.1:3236"
+echo "    UI (browser): http://127.0.0.1:5256   ← open this"
 echo ""
 
 cd ui

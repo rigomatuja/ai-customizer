@@ -85,7 +85,7 @@ If you only have five minutes, here is the minimum viable mental model:
 - **Entry points**:
   - `./install.sh` — prereq checks, `npm install` in `ui/`, start dev server.
   - `./update.sh` — pull upstream template files without touching user content.
-  - `cd ui && npm run dev` — Hono (`:3000`) + Vite (`:5173`) concurrently.
+  - `cd ui && npm run dev` — Hono (`:3236`) + Vite (`:5256`) concurrently.
 - **The big mental shift**: the repo IS the catalog. Every clone is an
   independent catalog. The UI and the manager agent both read/write this
   catalog, plus two separate disk locations (state dir, tool dirs).
@@ -174,7 +174,7 @@ Opencode. The code handles these asymmetries explicitly — never paper over the
   below 20.
 - **Package manager**: `npm`. `package-lock.json` is committed.
 - **Language**: TypeScript 5.7, ES modules (`"type": "module"`).
-- **Server**: `hono` + `@hono/node-server`. Single process, single port (3000
+- **Server**: `hono` + `@hono/node-server`. Single process, single port (3236
   by default, overridable via `PORT`).
 - **Client**: React 19 + Vite 6 + `react-router-dom` 7. No global state
   manager — component-local state + thin async hooks (`useAsync`, etc.).
@@ -235,7 +235,7 @@ See `ui/package.json` for exact versions. Current release: **v1.1.0** (bumped in
 │   └── manager-sync/SKILL.md
 └── ui/                              # the local web UI (Hono + Vite + React)
     ├── package.json                 # version lives here and must be bumped on release
-    ├── vite.config.ts               # strictPort: true on 5173; proxies /api to 127.0.0.1:3000
+    ├── vite.config.ts               # strictPort: true on 5256; proxies /api to 127.0.0.1:3236
     ├── index.html
     └── src/
         ├── shared/                  # types + schemas imported by BOTH server and client
@@ -737,7 +737,7 @@ restore the master from `.original`. If `.original` is missing, returns
 
 ## 8. API surface (all endpoints)
 
-Base URL: `http://127.0.0.1:3000`. All responses are JSON. Error shape:
+Base URL: `http://127.0.0.1:3236`. All responses are JSON. Error shape:
 `{ error: string, code?: string, details?: unknown }`.
 
 | Method | Path | Purpose |
@@ -951,7 +951,7 @@ The UI detects the mismatch and offers Reinstall in Settings.
 
 ### 13.1 `install.sh`
 
-- Idempotent. Safe to rerun; probes ports `3000` + `5173` via bash
+- Idempotent. Safe to rerun; probes ports `3236` + `5256` via bash
   `/dev/tcp`. If either is bound, prints "already running" and exits 0
   (no-op).
 - Checks `node` (v20+), `npm`, `git` on PATH.
@@ -996,11 +996,11 @@ The UI detects the mismatch and offers Reinstall in Settings.
 |---|---|---|
 | `CATALOG_PATH`         | walk up from the server source file looking for `.ai-customizer/catalog.json` | Override the catalog root the server reads from |
 | `AIC_USER_CONFIG_DIR`  | `~/.config/ai-customizer/` | Override the per-machine state dir |
-| `PORT`                 | `3000` | Override the Hono server port |
+| `PORT`                 | `3236` | Override the Hono server port |
 | `AIC_LOG_JSON`         | unset | `1` for line-delimited JSON logs |
 
-`vite.config.ts` has `strictPort: true` on `5173` and the proxy target
-`http://127.0.0.1:3000` is hardcoded. Running two UIs simultaneously requires
+`vite.config.ts` has `strictPort: true` on `5256` and the proxy target
+`http://127.0.0.1:3236` is hardcoded. Running two UIs simultaneously requires
 editing vite config — by design, v1 expects one UI per machine.
 
 ---
@@ -1106,7 +1106,7 @@ From `DESIGN.md` §12 and README "Not in v1":
    pre-check for the same condition. Backups use `tar` 7.x — check the
    exact options in `installer/backup.ts` if you care about symlink
    capture behavior.
-6. **`vite.config.ts::strictPort: true`**. Second UI on 5173 fails hard, not
+6. **`vite.config.ts::strictPort: true`**. Second UI on 5256 fails hard, not
    silently on 5174. Intentional.
 7. **Catalog JSON files are pretty-printed** (`JSON.stringify(x, null, 2) + '\n'`).
    Preserve this formatting when editing — the diff noise otherwise is painful.

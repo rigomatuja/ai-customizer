@@ -112,14 +112,14 @@ The installer checks prereqs (Node 20+, npm, git), runs `npm install` inside
 `ui/`, then starts the dev server in the foreground. Ctrl+C to stop.
 
 **Idempotent.** Re-running `./install.sh` while the UI is already up is a
-no-op: it detects the bound port (3000 or 5173), prints the current URLs,
+no-op: it detects the bound port (3236 or 5256), prints the current URLs,
 and exits 0. Rerun as many times as you want.
 
 Two processes start concurrently:
-- Hono API server on `http://127.0.0.1:3000`
-- Vite + React dev server on `http://127.0.0.1:5173` (proxies `/api/*` to :3000)
+- Hono API server on `http://127.0.0.1:3236`
+- Vite + React dev server on `http://127.0.0.1:5256` (proxies `/api/*` to :3236)
 
-Open `http://127.0.0.1:5173` in a browser.
+Open `http://127.0.0.1:5256` in a browser.
 
 **Prefer to do it by hand?**
 
@@ -729,7 +729,7 @@ Environment overrides:
 |---|---|---|
 | `CATALOG_PATH` | parent of `ui/` | Override catalog root |
 | `AIC_USER_CONFIG_DIR` | `~/.config/ai-customizer/` | Override user state dir |
-| `PORT` | `3000` | Override Hono server port |
+| `PORT` | `3236` | Override Hono server port |
 | `AIC_LOG_JSON` | unset | Set to `1` for line-delimited JSON logs |
 
 ---
