@@ -216,7 +216,7 @@ See `ui/package.json` for exact versions. Current release: **v1.4.0** (bumped in
 │       └── vX.Y.Z/{claude,opencode}/{before,after}.md
 ├── manager/                         # the manager agent (shipped with the template, NOT under customizations/)
 │   ├── manifest.json                # { id: "manager", type: "agent", activeVersion }
-│   └── v0.8.2/
+│   └── v0.9.0/
 │       ├── claude/manager.md        # Claude subagent
 │       ├── claude/slash-command.md  # /manager slash command (Claude-only; v1.0.6+)
 │       └── opencode/manager.md      # Opencode primary agent (YAML frontmatter)
@@ -843,10 +843,9 @@ No global store. Pages use `useAsync(() => api.xxx())` hooks that return
 - **type**: `agent`
 - **category**: `system`
 - **scope**: `global`
-- **activeVersion**: see `manager/manifest.json`. Currently `0.8.2`.
-  (v0.8.0 added gentle-ai enumeration — see §10.11; v0.8.1 audit-fixes
-  on top — see §10.12; v0.8.2 catches up with Opencode's `mode: all`
-  — see §10.13.)
+- **activeVersion**: see `manager/manifest.json`. Currently `0.9.0`.
+  (v0.8.x = gentle-ai enumeration series — §§10.11–10.13;
+  v0.9.0 = Show-before-write becomes opt-in — §10.14.)
 
 Not under `customizations/`. Factory-protected. Installed/uninstalled only
 through `/api/manager/*`.
@@ -1196,6 +1195,36 @@ change was needed.
 - **§17 cheat sheet** "Primary vs subagent" row reframed to mention
   the `mode:` field and its three valid values.
 
+### 10.14 v0.9.0 protocol additions (over v0.8.2)
+
+Show-before-write becomes opt-in. Step 1.6 was previously a HARD
+rule: *"Before writing ANY file, show all artifacts ... Do NOT skip
+the show step because the user will trust me"*. v0.9.0 reframes
+1.6 as a "Pre-write protocol" with two paths chosen by the user.
+
+- **Step 1.6 rewritten**:
+  - **Step 1** — *Ask once*. When write-ready, the manager asks
+    *"Show the full artifacts first, or go straight to writing?"*.
+    The answer applies to the entire batch. Re-ask only on a
+    genuinely new batch later in the same conversation.
+  - **Pre-declared preferences skip the question**. Recognised:
+    `just write` / `no necesito ver` / `go ahead` / `directo` /
+    `don't show me` / `escribe directamente` (skip-show); and
+    `always show me` / `siempre muéstrame` / `never write without
+    showing` (always-show).
+  - **Step 2A — Show path**: present manifest + every per-tool
+    file in code blocks; iterate on user edits; write on approval.
+  - **Step 2B — Skip path**: write all files atomically; announce
+    paths.
+  - **Always**: announce absolute paths after writing and remind
+    the user to run Apply (or register the patch in the guide).
+- **Hard rule changed** from *"Do NOT skip the show step"* to
+  *"Asking is mandatory unless the user pre-declared"*. The
+  manager never silently picks a path.
+- **References preserved**. Older callers (Steps 2.10, 2.11,
+  3.4.e, 1.7) keep saying *"go to Show-before-write"* — that
+  colloquial label still points at 1.6, which now branches.
+
 ### 10.2 Claude-only slash command (v1.0.6+)
 
 Installing the manager on Claude creates **two** files:
@@ -1210,7 +1239,7 @@ slash commands, so its install is a single file.
 **Slash-command pattern (general)**. If you need to ship a slash command for
 something other than the manager, the pattern is:
 - A markdown file at `~/.claude/commands/<name>.md` with YAML frontmatter
-  (see `manager/v0.8.2/claude/slash-command.md` for the canonical example).
+  (see `manager/v0.9.0/claude/slash-command.md` for the canonical example).
 - The body typically delegates to a subagent or runs instructions in the
   primary — it's just a prompt template Claude invokes on `/<name>`.
 - Installation goes through the same `ManagerAsset`-style 2-asset atomic
@@ -1231,7 +1260,7 @@ or edit a custom:
 5. **Content templates** — use the shipped templates for SKILL.md / agent.md /
    before.md+after.md shapes.
 
-Read `manager/v0.8.2/claude/manager.md` for the full current text. DO NOT
+Read `manager/v0.9.0/claude/manager.md` for the full current text. DO NOT
 hand-edit this in the catalog; bump a new version folder instead.
 
 ---
