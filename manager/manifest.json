@@ -55,7 +55,12 @@
       "version": "0.8.1",
       "createdAt": "2026-04-23T00:00:00Z",
       "changelog": "Audit fixes on v0.8.0. Three changes. (1) Step 3.9 gains an explicit 'Trigger vocabulary' section enumerating the signals (direct, indirect, discovery, composition) that license running each phase — and a hard rule: NEVER run Phase 1 unsolicited. 'Intent overlaps with gentle-ai' is removed as a license; the user must have given a signal. (2) New Phase 3 — deep-read of a specific skill/command/agent body when the user picks it to compose with. Phase 2 stays shallow (frontmatter only); Phase 3 reads full body and extracts whenToInvoke / whatItDoes / output / rules / anti-patterns so the manager can reference the capability precisely in the user's custom. (3) Phase 2 presentation now groups skills by natural prefix (sdd-*, pr-*/issue-*, review, etc.) and separates ambient tags from invokable skills from user-triggered slash commands. A new terminology glossary at the top of 3.9 makes the tag/skill/command/subagent distinction explicit. Steps 2.10 and 2.11 composition-check paragraphs rewritten to reference the trigger vocabulary — they no longer push the manager to run enumeration on mere 'intent overlap'."
+    },
+    {
+      "version": "0.8.2",
+      "createdAt": "2026-04-25T00:00:00Z",
+      "changelog": "Catch up with current Opencode spec — `mode: all` is now a first-class option alongside `primary` and `subagent` (Opencode docs at opencode.ai/docs/agents). Step 2.10 dim 10 rewritten with three explicit options: `primary` (Tab-only), `subagent` (delegation-only, also @agent), `all` (both). Default lean when the user has no preference flips from `subagent` to `all`, matching Opencode's own omit-default and giving maximum flexibility — the user can tighten later if needed. Step 4.4 Opencode frontmatter template updated to `mode: primary | subagent | all`. Cross-tool invocation symmetry table expanded from 2 rows to 3 (direct-only / delegation-only / both) with the matching Claude side per row (companion or bare body). The earlier 'always primary by default' stub in the §0.2 mode-per-tool reference also corrected to the three-way list. Pure documentation/protocol fix — installer doesn't validate frontmatter mode, so no installer change needed."
     }
   ],
-  "activeVersion": "0.8.1"
+  "activeVersion": "0.8.2"
 }

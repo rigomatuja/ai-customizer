@@ -216,7 +216,7 @@ See `ui/package.json` for exact versions. Current release: **v1.4.0** (bumped in
 │       └── vX.Y.Z/{claude,opencode}/{before,after}.md
 ├── manager/                         # the manager agent (shipped with the template, NOT under customizations/)
 │   ├── manifest.json                # { id: "manager", type: "agent", activeVersion }
-│   └── v0.8.1/
+│   └── v0.8.2/
 │       ├── claude/manager.md        # Claude subagent
 │       ├── claude/slash-command.md  # /manager slash command (Claude-only; v1.0.6+)
 │       └── opencode/manager.md      # Opencode primary agent (YAML frontmatter)
@@ -843,9 +843,10 @@ No global store. Pages use `useAsync(() => api.xxx())` hooks that return
 - **type**: `agent`
 - **category**: `system`
 - **scope**: `global`
-- **activeVersion**: see `manager/manifest.json`. Currently `0.8.1`.
+- **activeVersion**: see `manager/manifest.json`. Currently `0.8.2`.
   (v0.8.0 added gentle-ai enumeration — see §10.11; v0.8.1 audit-fixes
-  on top — see §10.12.)
+  on top — see §10.12; v0.8.2 catches up with Opencode's `mode: all`
+  — see §10.13.)
 
 Not under `customizations/`. Factory-protected. Installed/uninstalled only
 through `/api/manager/*`.
@@ -1156,6 +1157,45 @@ manager reads nothing about gentle-ai unsolicited**.
   given a gentle-ai signal per 3.9's trigger vocabulary"*. Aligns
   with the strict-opt-in principle.
 
+### 10.13 v0.8.2 protocol additions (over v0.8.1)
+
+Catch-up with current Opencode spec: `mode: all` is now a first-class
+option alongside `primary` and `subagent`. Opencode docs at
+opencode.ai/docs/agents document three values; previous manager
+versions only knew the first two. Pure documentation/protocol fix
+— the installer doesn't validate frontmatter `mode`, so no installer
+change was needed.
+
+- **Step 2.10 dim 10 rewritten** with the three explicit options:
+  - `primary` — Tab-only, direct user invocation, no auto-delegation.
+  - `subagent` — delegation-only by primaries, plus user `@agent`
+    references.
+  - `all` — both invocation paths. Canonical example from the user's
+    own catalog: an agent like `dev-planner` is genuinely useful
+    Tab-selected (the user picks it to plan a task) AND auto-delegated
+    (other primaries call it for sub-task planning).
+- **Default lean changed**: when the user has no preference, the
+  manager now leans toward `all` instead of `subagent`. Rationale:
+  matches Opencode's omit-default, gives the user both paths
+  upfront, can be tightened later if needed. v0.6.0 had defaulted
+  to `subagent` in a two-option world; with the third option
+  available, `all` is the more-flexible safe bet.
+- **Step 4.4 Opencode frontmatter template** updated:
+  `mode: primary | subagent | all  ← from 2.10 dim 10. Omit to
+  default to 'all'.` The "When to use me" section now has three
+  variants (one per mode value).
+- **Cross-tool invocation symmetry table** in §4.4 expanded from
+  2 rows to 3:
+
+  | User intent | Claude side | Opencode side |
+  |---|---|---|
+  | Direct only | slash-command companion | `mode: primary` |
+  | Delegation only | bare subagent body | `mode: subagent` |
+  | Both | companion + bare body | `mode: all` |
+
+- **§17 cheat sheet** "Primary vs subagent" row reframed to mention
+  the `mode:` field and its three valid values.
+
 ### 10.2 Claude-only slash command (v1.0.6+)
 
 Installing the manager on Claude creates **two** files:
@@ -1170,7 +1210,7 @@ slash commands, so its install is a single file.
 **Slash-command pattern (general)**. If you need to ship a slash command for
 something other than the manager, the pattern is:
 - A markdown file at `~/.claude/commands/<name>.md` with YAML frontmatter
-  (see `manager/v0.8.1/claude/slash-command.md` for the canonical example).
+  (see `manager/v0.8.2/claude/slash-command.md` for the canonical example).
 - The body typically delegates to a subagent or runs instructions in the
   primary — it's just a prompt template Claude invokes on `/<name>`.
 - Installation goes through the same `ManagerAsset`-style 2-asset atomic
@@ -1191,7 +1231,7 @@ or edit a custom:
 5. **Content templates** — use the shipped templates for SKILL.md / agent.md /
    before.md+after.md shapes.
 
-Read `manager/v0.8.1/claude/manager.md` for the full current text. DO NOT
+Read `manager/v0.8.2/claude/manager.md` for the full current text. DO NOT
 hand-edit this in the catalog; bump a new version folder instead.
 
 ---
@@ -1368,7 +1408,7 @@ author a skill, toggle it in the UI, Apply, verify on disk, toggle off, Apply.
 | Agent path (plural vs singular) | `agents/<id>.md` | `agent/<id>.md` |
 | Slash commands | `commands/<id>.md` (yes) | (no such feature) |
 | Master patch file | `CLAUDE.md` (+ `.original`) | `AGENTS.md` (+ `.original`) |
-| Primary vs subagent | Subagent pattern (body + slash command) | Primary agent (YAML frontmatter) |
+| Primary vs subagent | Subagent pattern (body + optional slash command) | Per-agent `mode:` field — `primary`, `subagent`, or **`all`** (both). Omitted = `all` per Opencode spec. |
 | Project scope dir | `<project>/.claude/` | `<project>/.opencode/` |
 | Project-scoped skills discovery | `.claude/skills/<name>/SKILL.md` | `.opencode/skills/<name>/SKILL.md` |
 | Skill `paths` frontmatter (auto-activate on file-match) | supported | **unsupported** (field silently ignored) — semantic match via `description` only |
