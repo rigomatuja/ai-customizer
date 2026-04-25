@@ -44,7 +44,7 @@ function managerAssets(catalogPath: string, version: string, tool: Tool): Manage
     dst:
       tool === 'claude'
         ? path.join(home, '.claude', 'agents', 'manager.md')
-        : path.join(home, '.config', 'opencode', 'agent', 'manager.md'),
+        : path.join(home, '.config', 'opencode', 'agents', 'manager.md'),
   }
 
   if (tool !== 'claude') return [agent]
@@ -63,7 +63,7 @@ function managerAgentDest(tool: Tool): string {
   const home = os.homedir()
   return tool === 'claude'
     ? path.join(home, '.claude', 'agents', 'manager.md')
-    : path.join(home, '.config', 'opencode', 'agent', 'manager.md')
+    : path.join(home, '.config', 'opencode', 'agents', 'manager.md')
 }
 
 function claudeSlashCommandDest(): string {
@@ -149,6 +149,22 @@ async function installManagerImpl(catalogPath: string, tools: Tool[]): Promise<I
     managerAssets(catalogPath, version, tool).map((asset) => ({ tool, asset })),
   )
 
+  // Path-scheme migration: clean up old tracker entries whose toPath
+  // points at a path NO LONGER produced by managerAssets() (e.g.,
+  // singular `.opencode/agent/manager.md` from before the plural
+  // migration). Without this, those files would persist on disk as
+  // orphans after a fresh install at the new path.
+  const tracker = await readTracker(catalogPath)
+  const newDsts = new Set(plannedAssets.map(({ asset }) => asset.dst))
+  for (const op of tracker.operations) {
+    if (op.customType !== 'agent' || op.customId !== 'manager') continue
+    if (op.type !== 'copy') continue
+    if (newDsts.has(op.toPath)) continue
+    if (existsSync(op.toPath)) {
+      await fs.unlink(op.toPath).catch(() => undefined)
+    }
+  }
+
   // Snapshot any pre-existing destination content for rollback.
   const previousSnapshot = new Map<string, string>()
   for (const { asset } of plannedAssets) {
@@ -224,7 +240,9 @@ async function installManagerImpl(catalogPath: string, tools: Tool[]): Promise<I
   }
 
   // All copies succeeded — commit tracker in a single atomic write.
-  const tracker = await readTracker(catalogPath)
+  // Reuse the `tracker` we read at the top of this function (for the
+  // path-scheme migration) instead of re-reading. Within the
+  // `withTrackerLock` boundary nobody else writes to this file.
   tracker.operations = tracker.operations.filter(
     (o) => !(o.customType === 'agent' && o.customId === 'manager'),
   )

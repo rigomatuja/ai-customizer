@@ -74,14 +74,16 @@ export function resolveInstallPath(params: {
       destFile = path.join(baseOpencode, 'skills', customId, 'SKILL.md')
     }
   } else {
-    // agent
+    // agent — Opencode docs (opencode.ai/docs/config) document plural
+    // directory names as the supported convention; singular `agent/`
+    // is backwards-compatible only. Use `agents/` for both tools.
     if (tool === 'claude') {
       const baseClaude = target.scope === 'global' ? path.join(home, '.claude') : path.join(projectRoot!, '.claude')
       destFile = path.join(baseClaude, 'agents', `${customId}.md`)
     } else {
       const baseOpencode =
         target.scope === 'global' ? path.join(home, '.config', 'opencode') : path.join(projectRoot!, '.opencode')
-      destFile = path.join(baseOpencode, 'agent', `${customId}.md`)
+      destFile = path.join(baseOpencode, 'agents', `${customId}.md`)
     }
   }
 

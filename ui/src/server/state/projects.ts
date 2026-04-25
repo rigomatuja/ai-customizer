@@ -8,7 +8,7 @@ import {
   type ProjectUpdateInput,
   type ProjectsFile,
 } from '../../shared/schemas'
-import { writeJsonAtomic } from '../installer/fs-utils'
+import { expandHome, writeJsonAtomic } from '../installer/fs-utils'
 import { userConfigPaths } from './paths'
 import { readTracker } from './tracker'
 import { getCatalogPath } from '../catalog/paths'
@@ -36,7 +36,11 @@ async function writeFile(data: ProjectsFile): Promise<void> {
 
 export async function listProjects(): Promise<ProjectEntry[]> {
   const file = await readFile()
-  return file.projects
+  // Normalize stored paths so every consumer (planner, executor, hook
+  // registry, orphans) gets an absolute path. `~` and `~/...` expand
+  // to the user's home dir; absolute paths and other relative paths
+  // pass through unchanged.
+  return file.projects.map((p) => ({ ...p, path: expandHome(p.path) }))
 }
 
 export async function createProject(input: ProjectCreateInput): Promise<ProjectEntry> {

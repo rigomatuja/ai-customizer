@@ -6,7 +6,7 @@ One git-versioned catalog of your customs (skills, agents, patches), a local
 web UI to install and uninstall them atomically, and a manager agent that
 writes the files for you when you ask.
 
-**Status**: v1.4.0. Local-use stable. Linux and macOS supported.
+**Status**: v1.4.1. Local-use stable. Linux and macOS supported.
 
 ---
 
@@ -203,7 +203,7 @@ On disk after this step:
 
 ```
 ~/.claude/agents/manager.md                    # if you selected Claude
-~/.config/opencode/agent/manager.md            # if you selected Opencode
+~/.config/opencode/agents/manager.md            # if you selected Opencode
 ```
 
 You can skip this step and install it later from **Settings → Manager**.
@@ -416,13 +416,13 @@ customizations/agents/<id>/
 **Tool side (global install):**
 ```
 ~/.claude/agents/<id>.md
-~/.config/opencode/agent/<id>.md
+~/.config/opencode/agents/<id>.md
 ```
 
 **Tool side (project install):**
 ```
 <project>/.claude/agents/<id>.md
-<project>/.opencode/agent/<id>.md
+<project>/.opencode/agents/<id>.md
 ```
 
 ### Patches

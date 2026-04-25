@@ -148,7 +148,7 @@ export function Welcome({ catalogPath, userConfigDir, onInitialized }: WelcomePr
                   checked={selectedTools.opencode}
                   onChange={(e) => setSelectedTools({ ...selectedTools, opencode: e.target.checked })}
                 />{' '}
-                Opencode → <code>~/.config/opencode/agent/manager.md</code>
+                Opencode → <code>~/.config/opencode/agents/manager.md</code>
               </label>
             </fieldset>
             {error ? <p className="error">{error}</p> : null}

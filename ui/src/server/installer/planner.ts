@@ -274,12 +274,37 @@ export async function computePlan(input: PlannerInput): Promise<Plan> {
 
     const prev = installed.get(key)
     const needsInstall = !prev
-    const needsUpgrade =
+    let needsUpgrade =
       prev !== undefined &&
       (prev.version !== summary.activeVersion ||
         !sameTarget(prev.target, entry.target) ||
         prev.tools.length !== requestedTools.length ||
         !prev.tools.every((t) => requestedTools.includes(t)))
+
+    // Path-migration check: if any tracker op for this custom carries a
+    // stale toPath, force an upgrade so the install runs against the
+    // current path scheme.
+    //
+    // Stale shapes we currently know about:
+    //   - literal `~/` prefix (un-expanded home, written before path
+    //     expansion landed in state/projects.ts)
+    //   - `.opencode/agent/` singular dir (Opencode docs deprecated
+    //     in favour of plural `agents/`)
+    //
+    // Forcing upgrade is safe: the upgrade flow uninstalls every
+    // tracker op first (which `unlink`s the stale path) and then
+    // installs at the freshly-resolved path.
+    if (!needsInstall && !needsUpgrade) {
+      const ops = trackerOpsFor(tracker, entry.customType, entry.customId)
+      const stale = ops.some(
+        (op) =>
+          op.toPath.startsWith('~/') ||
+          op.toPath.startsWith('~\\') ||
+          op.toPath.includes('/.opencode/agent/') ||
+          op.toPath.includes('\\.opencode\\agent\\'),
+      )
+      if (stale) needsUpgrade = true
+    }
 
     if (!needsInstall && !needsUpgrade) {
       // Desired state matches tracker, but filesystem may have drifted.

@@ -9,6 +9,28 @@ export async function ensureDir(dir: string): Promise<void> {
 }
 
 /**
+ * Expand a leading `~` to the user's home directory.
+ *
+ * Node's `path.join` does NOT expand `~` — that's a shell convention.
+ * If a stored path like `~/Documents/foo` reaches `path.join` un-expanded,
+ * the tilde becomes a LITERAL directory name relative to the process's
+ * cwd. For the customizer, that meant project-scoped installs silently
+ * landed at `<server_cwd>/~/Documents/...` — invisible to the actual
+ * tool that scans the project's real path.
+ *
+ * Always run user-supplied paths through this helper before joining or
+ * creating files.
+ */
+export function expandHome(p: string): string {
+  if (!p) return p
+  if (p === '~') return os.homedir()
+  if (p.startsWith('~/') || p.startsWith('~\\')) {
+    return path.join(os.homedir(), p.slice(2))
+  }
+  return p
+}
+
+/**
  * Write a JSON file atomically: write to `${path}.tmp-<random>`, then
  * rename. Rename is atomic on POSIX filesystems — a reader either sees
  * the old file or the new one, never a partial write.

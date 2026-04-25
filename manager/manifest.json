@@ -65,7 +65,12 @@
       "version": "0.9.0",
       "createdAt": "2026-04-25T00:00:00Z",
       "changelog": "Show-before-write becomes opt-in. Step 1.6 rewritten as a 'Pre-write protocol' with two paths chosen by the user: (A) show full artifacts in code blocks before writing, then approve and write; (B) skip the show step and write directly. The manager asks ONCE per write batch when it reaches write-ready state ('Show the full artifacts first, or go straight to writing?'). Pre-declared preferences ('just write', 'no necesito ver', 'always show me', etc.) skip the question and apply for the rest of the conversation. Path A and path B both ALWAYS announce the absolute paths written and remind the user to run Apply. Previous v0.8.x and earlier mandated the show step ('Do NOT skip the show step because the user will trust me') — that hard rule is replaced by 'asking is mandatory unless the user pre-declared'. Body retains the 'Show-before-write' label as a colloquial pointer to 1.6 from older callers."
+    },
+    {
+      "version": "0.9.1",
+      "createdAt": "2026-04-26T00:00:00Z",
+      "changelog": "Catch up with current Opencode spec on directory naming. Per opencode.ai/docs/config the supported convention is the PLURAL form `~/.config/opencode/agents/` and `<project>/.opencode/agents/`; singular `agent/` is backwards-compatible only. All references in the manager body that pointed at the singular path are now plural — Step 0.3 read scope, Step 3.9 enumeration paths, Step 4.4 agent file install destinations, the terminology glossary subagent row, and the cross-reference text. Pure documentation/protocol fix that mirrors the v1.4.1 installer change which actually flipped the disk layout."
     }
   ],
-  "activeVersion": "0.9.0"
+  "activeVersion": "0.9.1"
 }
