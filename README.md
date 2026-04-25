@@ -318,11 +318,13 @@ Two routes.
      `dependencies.gentleAi`.
    - **When creating agents**, walks a 12-dimension checklist
      (triggers, role, scope, procedure, tools, delegation, input,
-     output, failures, anti-patterns, Opencode mode, whether to ship
-     a Claude `/<id>` slash-command companion, and per-tool model
-     assignment) before writing — one dimension per question. Model
-     defaults to `inherit` (omit the field) on both tools unless the
-     user picks explicitly.
+     output, failures, anti-patterns, Opencode mode
+     `primary`/`subagent`/`all`, whether to ship a Claude `/<id>`
+     slash-command companion, and per-tool model assignment) before
+     writing — one dimension per question. Model defaults to
+     `inherit` (omit the field) on both tools unless the user picks
+     explicitly; Opencode mode defaults to `all` (matches Opencode's
+     omit-default).
 
 After the manager finishes, the new custom lives under
 `customizations/<type>/<id>/` and shows up in the UI on refresh.
