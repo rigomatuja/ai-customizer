@@ -174,6 +174,16 @@ export const CatalogPathUpdateInputSchema = z.object({
 })
 export type CatalogPathUpdateInput = z.infer<typeof CatalogPathUpdateInputSchema>
 
+export const CatalogPathBrowseInputSchema = z.object({
+  path: z.string().optional(),
+})
+export type CatalogPathBrowseInput = z.infer<typeof CatalogPathBrowseInputSchema>
+
+export const CatalogPathValidateInputSchema = z.object({
+  catalogPath: z.string().min(1),
+})
+export type CatalogPathValidateInput = z.infer<typeof CatalogPathValidateInputSchema>
+
 export const TargetScopeSchema = z.union([
   z.object({ scope: z.literal('global') }),
   z.object({ scope: z.literal('project'), projectId: z.string().min(1) }),

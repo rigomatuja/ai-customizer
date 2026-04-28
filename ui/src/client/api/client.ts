@@ -2,6 +2,8 @@ import type {
   ApiError,
   AppStateResponse,
   ApplyResponse,
+  CatalogPathBrowseResponse,
+  CatalogPathValidateResponse,
   CatalogOverview,
   CustomDetail,
   CustomsListResponse,
@@ -86,6 +88,12 @@ export const api = {
     jsonPost<{ config: UserConfig }>('/api/state/tools-override', override),
   updateCatalogPath: (catalogPath: string) =>
     jsonPost<AppStateResponse>('/api/state/catalog-path', { catalogPath }),
+  browseCatalogPath: (currentPath?: string) =>
+    jsonPost<CatalogPathBrowseResponse>('/api/state/catalog-path/browse',
+      currentPath ? { path: currentPath } : {},
+    ),
+  validateCatalogPath: (catalogPath: string) =>
+    jsonPost<CatalogPathValidateResponse>('/api/state/catalog-path/validate', { catalogPath }),
 
   projects: () => request<ProjectsResponse>('/api/state/projects'),
   createProject: (input: ProjectCreateInput) =>

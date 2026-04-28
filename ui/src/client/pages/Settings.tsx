@@ -4,6 +4,8 @@ import type { Tool } from '../../shared/schemas'
 import type { ClaudeModelRegistry, OpencodeModelRegistry } from '../../shared/schemas'
 import type {
   AppStateResponse,
+  CatalogPathBrowseResponse,
+  CatalogPathValidateResponse,
   GentleAiDetection,
   GentleAiMasterScan,
   ProjectsResponse,
@@ -490,33 +492,71 @@ function CatalogPathPanel({
 }) {
   const [draftPath, setDraftPath] = useState('')
   const [saving, setSaving] = useState(false)
+  const [validating, setValidating] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveInfo, setSaveInfo] = useState<string | null>(null)
+  const [validation, setValidation] = useState<CatalogPathValidateResponse | null>(null)
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [showBrowseModal, setShowBrowseModal] = useState(false)
+  const [browse, setBrowse] = useState<CatalogPathBrowseResponse | null>(null)
+  const [browseLoading, setBrowseLoading] = useState(false)
+  const [browseError, setBrowseError] = useState<string | null>(null)
 
   const isLocked =
     state.status === 'success' && (state.data.catalogPathLockedByEnv || state.data.catalogPathSource === 'env')
 
-  const handleSave = async () => {
-    setSaving(true)
+  const loadBrowse = async (nextPath?: string) => {
+    setBrowseLoading(true)
+    setBrowseError(null)
+    try {
+      const data = await api.browseCatalogPath(nextPath)
+      setBrowse(data)
+    } catch (err) {
+      setBrowseError(err instanceof ApiClientError ? err.message : String(err))
+    } finally {
+      setBrowseLoading(false)
+    }
+  }
+
+  const openBrowse = async () => {
+    setShowBrowseModal(true)
+    const seed = draftPath.trim() || (state.status === 'success' ? state.data.catalogPath : undefined)
+    await loadBrowse(seed)
+  }
+
+  const handleRequestSave = async () => {
+    setValidating(true)
     setSaveError(null)
     setSaveInfo(null)
+    setValidation(null)
     try {
       const value = draftPath.trim()
       if (!value) {
         setSaveError('Introduce una ruta antes de guardar.')
         return
       }
-      await api.updateCatalogPath(value)
-      setSaveInfo(
-        'Ruta actualizada. Si es el mismo catálogo movido/renombrado, instalaciones e historial se conservan; no hace falta reinstalar.',
-      )
+      const result = await api.validateCatalogPath(value)
+      setValidation(result)
+      setShowConfirmModal(true)
+    } catch (err) {
+      setSaveError(err instanceof ApiClientError ? err.message : String(err))
+    } finally {
+      setValidating(false)
+    }
+  }
+
+  const handleConfirmSave = async () => {
+    if (!validation?.resolvedPath || validation.riskLevel === 'blocked') return
+    setSaving(true)
+    setSaveError(null)
+    try {
+      await api.updateCatalogPath(validation.resolvedPath)
+      setSaveInfo('Ruta actualizada. No se ha lanzado Apply ni reinstalación automática.')
       setDraftPath('')
+      setShowConfirmModal(false)
+      setValidation(null)
       onSaved()
     } catch (err) {
-      if (err instanceof ApiClientError && err.code === 'catalog-path-locked-by-env') {
-        setSaveError('CATALOG_PATH está activo: la ruta queda bloqueada desde entorno.')
-        return
-      }
       setSaveError(err instanceof ApiClientError ? err.message : String(err))
     } finally {
       setSaving(false)
@@ -564,10 +604,13 @@ function CatalogPathPanel({
             placeholder="Nueva ruta de catálogo (move/rename relink)"
             value={draftPath}
             onChange={(e) => setDraftPath(e.target.value)}
-            disabled={isLocked || saving}
+            disabled={isLocked || saving || validating}
           />
-          <button className="button" onClick={() => void handleSave()} disabled={isLocked || saving}>
-            {saving ? 'Guardando…' : 'Guardar ruta'}
+          <button className="button button-secondary" onClick={() => void openBrowse()} disabled={isLocked || saving || validating}>
+            Seleccionar…
+          </button>
+          <button className="button" onClick={() => void handleRequestSave()} disabled={isLocked || saving || validating}>
+            {validating ? 'Validando…' : saving ? 'Guardando…' : 'Guardar ruta'}
           </button>
         </div>
         {isLocked ? (
@@ -576,7 +619,83 @@ function CatalogPathPanel({
           </p>
         ) : null}
         {saveError ? <p className="error small">{saveError}</p> : null}
-          {saveInfo ? <p className="muted small">{saveInfo}</p> : null}
+        {saveInfo ? <p className="muted small">{saveInfo}</p> : null}
+
+        {showBrowseModal ? (
+          <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Selector de carpeta de catálogo">
+            <div className="modal-card">
+              <h3>Seleccionar carpeta</h3>
+              {browseLoading ? <p className="muted">Cargando…</p> : null}
+              {browseError ? <p className="error small">{browseError}</p> : null}
+              {browse ? (
+                <>
+                  <p className="small"><code>{browse.path}</code></p>
+                  <div className="row">
+                    <button className="button button-secondary" disabled={!browse.parentPath || browseLoading} onClick={() => void loadBrowse(browse.parentPath ?? undefined)}>
+                      Subir
+                    </button>
+                    <span className={`badge badge-${browse.isCatalogRoot ? 'ok' : 'warn'}`}>
+                      {browse.isCatalogRoot ? 'catálogo válido' : 'sin marker de catálogo'}
+                    </span>
+                  </div>
+                  {browse.warnings.length > 0 ? (
+                    <ul className="catalog-path-list">
+                      {browse.warnings.map((w) => (
+                        <li key={`${w.code}-${w.message}`} className="small muted">Warning: {w.message}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  <ul className="catalog-path-list">
+                    {browse.directories.map((entry) => (
+                      <li key={entry.path}>
+                        <button className="button button-secondary" onClick={() => void loadBrowse(entry.path)}>
+                          {entry.name}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="row">
+                    <button className="button" disabled={!browse.isCatalogRoot} onClick={() => { setDraftPath(browse.path); setShowBrowseModal(false) }}>
+                      Usar esta carpeta
+                    </button>
+                    <button className="button button-secondary" onClick={() => setShowBrowseModal(false)}>
+                      Cerrar
+                    </button>
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
+        {showConfirmModal && validation ? (
+          <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Confirmar relink de catálogo">
+            <div className="modal-card">
+              <h3>Confirmar cambio de ruta</h3>
+              <p className="small">
+                Ruta resuelta: <code>{validation.resolvedPath ?? '—'}</code>
+              </p>
+              <p className="small">
+                Riesgo: <span className={`badge badge-${validation.riskLevel === 'blocked' ? 'error' : validation.riskLevel === 'medium' ? 'warn' : 'ok'}`}>{validation.riskLevel}</span>
+              </p>
+              <ul className="catalog-path-list">
+                {validation.messages.map((m) => (
+                  <li key={m.code} className={m.level === 'error' ? 'error small' : 'muted small'}>
+                    {m.message}
+                  </li>
+                ))}
+              </ul>
+              <div className="row">
+                <button className="button button-secondary" onClick={() => setShowConfirmModal(false)}>
+                  Cancelar
+                </button>
+                <button className="button" onClick={() => void handleConfirmSave()} disabled={validation.riskLevel === 'blocked' || saving}>
+                  {saving ? 'Guardando…' : 'Confirmar cambio'}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
         </>
       ) : null}
       <p className="muted small">

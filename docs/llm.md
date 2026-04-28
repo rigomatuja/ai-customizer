@@ -774,7 +774,9 @@ Base URL: `http://127.0.0.1:3236`. All responses are JSON. Error shape:
 | GET    | `/api/state`                            | config + projects + installations + tracker summary |
 | POST   | `/api/state/init`                       | create state dir + config.json if absent |
 | POST   | `/api/state/tools-override`             | override detected tools (`null` clears) |
-| POST   | `/api/state/catalog-path`               | relink catalog root (`{ catalogPath }`) when catalog was moved/renamed; validates marker `.ai-customizer/catalog.json`; returns 409 `catalog-path-locked-by-env` if `CATALOG_PATH` is set |
+| POST   | `/api/state/catalog-path`               | persist relink catalog root (`{ catalogPath }`) after confirmation |
+| POST   | `/api/state/catalog-path/browse`        | local directory browser for Settings picker. Body `{ path? }`; resolves from `$HOME` when omitted, returns current path, optional parent, immediate subdirectories, `isCatalogRoot`, and non-fatal browse warnings |
+| POST   | `/api/state/catalog-path/validate`      | pre-validation before relink confirmation. Body `{ catalogPath }`; returns `resolvedPath`, `isValid`, `isSamePath`, `isEnvLocked`, `riskLevel`, and structured messages |
 | GET    | `/api/state/projects`                   | list registered projects |
 | POST   | `/api/state/projects`                   | create project |
 | PUT    | `/api/state/projects/:id`               | update project |
@@ -1331,7 +1333,7 @@ at new content — prior installs surface as orphans until cleaned up.
 | `.original` deleted by user | First next patch Apply re-snapshots current master as `.original`. User gets fresh baseline (intentional feature, not a bug). |
 | Stale `.lock` after crash | proper-lockfile auto-clears locks older than 60s on the next acquire attempt. Either wait ~60s and restart, or delete `~/.config/ai-customizer/.lock` manually. The PID inside is metadata only. |
 | Tracker references deleted custom | Orphan. Force-uninstall. |
-| Catalog moved/renamed | Use Settings → Catalog to relink path via `POST /api/state/catalog-path` (no restart) when it is the same catalog moved/renamed. If `CATALOG_PATH` is set, UI relink is locked (409 `catalog-path-locked-by-env`) and env var remains authoritative. Avoid relink while Apply is running. |
+| Catalog moved/renamed | Use Settings → Catalog to relink path when it is the same catalog moved/renamed. Flow is now: `POST /api/state/catalog-path/validate` (modal warnings/risks) → `POST /api/state/catalog-path` on confirm. Optional local picker uses `POST /api/state/catalog-path/browse`. If `CATALOG_PATH` is set, validation returns blocked and save is denied. Avoid relink while Apply is running. |
 | Schema mismatch in `install-state.json` / `application-guide.json` / etc. | `safeParse` fails → reader returns an empty/default document. **No error is raised.** The UI behaves as if the file were absent. If you change a schema, add a migration path; do NOT rely on the fallback to "protect" users — it silently loses their state. |
 
 ---
@@ -1510,9 +1512,10 @@ From `DESIGN.md` §12 and README "Not in v1":
 1. **State dir is shared across catalogs**. Opening the UI from a second catalog
    on the same machine makes installs from catalog #1 show as orphans. Use
    `AIC_USER_CONFIG_DIR` to isolate test environments.
-   The new relink flow in Settings is intended for *same-catalog move/rename*,
-   not catalog switching; switching to a different catalog can surface orphans/blockers
-   until desired state is reconciled.
+   The relink flow in Settings is intended for *same-catalog move/rename*,
+   not catalog switching; validation modal explicitly warns about this because
+   switching to a different catalog can surface orphans/blockers until desired
+   state is reconciled.
 2. **`.original` is sticky**. Uninstalling every patch restores the master but
    keeps `.original`. This is intentional (idempotence). To reset the baseline,
    delete `.original` manually — the next patch Apply will re-snapshot.

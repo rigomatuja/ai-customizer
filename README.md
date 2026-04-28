@@ -101,9 +101,11 @@ Remember that path — the UI shows it in Settings and the manager uses it
 when it writes files.
 
 If you later move or rename the same catalog folder, update the path from
-**Settings → Catalog**. You do not need to reinstall customs just because the
-folder path changed. If `CATALOG_PATH` is set, that env var stays authoritative
-and Settings shows the path as locked.
+**Settings → Catalog**. You can write the path manually or pick it with
+**Seleccionar…** (local directory browser). Before saving, the UI validates and
+shows a confirmation modal with risks/warnings. You do not need to reinstall
+customs just because the folder path changed. If `CATALOG_PATH` is set, that
+env var stays authoritative and Settings shows the path as locked.
 
 ### 2. Install and launch — one script
 
@@ -810,11 +812,12 @@ Your `~/.claude/agents/manager.md` is a symlink pointing inside this
 repo, or your catalog path is aliased through a symlink. Unsymlink it.
 
 **I moved or renamed my catalog folder.**
-Open **Settings → Catalog**, enter the new folder path, and save. The path must
-contain `.ai-customizer/catalog.json`. For the same catalog moved/renamed,
-installations and history stay valid; avoid changing the path while Apply is
-running. If you point at a different catalog, the shared state dir may surface
-orphans or blockers until you reconcile it.
+Open **Settings → Catalog**, enter/select the new folder path, validate, then
+confirm in the modal. The path must contain `.ai-customizer/catalog.json`.
+For the same catalog moved/renamed, installations and history stay valid;
+avoid changing the path while Apply is running. If you point at a different
+catalog, the shared state dir may surface orphans or blockers until you
+reconcile it.
 
 **Logs.**
 Default human-readable to stderr. Set `AIC_LOG_JSON=1` for structured

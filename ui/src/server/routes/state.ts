@@ -3,12 +3,19 @@ import { existsSync } from 'node:fs'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import {
+  CatalogPathBrowseInputSchema,
   CatalogPathUpdateInputSchema,
+  CatalogPathValidateInputSchema,
   ProjectCreateInputSchema,
   ProjectUpdateInputSchema,
   ToolsOverrideSchema,
 } from '../../shared/schemas'
-import type { AppStateResponse, ProjectsResponse } from '../../shared/types'
+import type {
+  AppStateResponse,
+  CatalogPathBrowseResponse,
+  CatalogPathValidateResponse,
+  ProjectsResponse,
+} from '../../shared/types'
 import { getCatalogPath, getCatalogPathSource, setRuntimeCatalogPath } from '../catalog/paths'
 import { expandHome } from '../installer/fs-utils'
 import {
@@ -44,6 +51,63 @@ async function resolveAndValidateCatalogPath(inputRaw: string): Promise<string> 
     throw new Error(`catalog marker not found at ${marker}`)
   }
   return resolved
+}
+
+function resolveInputPath(inputRaw: string): string {
+  return path.resolve(expandHome(inputRaw.trim()))
+}
+
+function catalogMarkerPath(catalogRoot: string): string {
+  return path.join(catalogRoot, CATALOG_CONFIG_MARKER)
+}
+
+async function isDirectory(dirPath: string): Promise<boolean> {
+  const st = await fs.stat(dirPath)
+  return st.isDirectory()
+}
+
+async function buildBrowseResponse(inputPath?: string): Promise<CatalogPathBrowseResponse> {
+  const start = inputPath && inputPath.trim().length > 0 ? inputPath : '~'
+  const resolved = resolveInputPath(start)
+
+  if (!existsSync(resolved)) {
+    throw new Error('path does not exist')
+  }
+  if (!(await isDirectory(resolved))) {
+    throw new Error('path must be a directory')
+  }
+
+  const warnings: CatalogPathBrowseResponse['warnings'] = []
+  const entries = await fs.readdir(resolved, { withFileTypes: true })
+  const directories: CatalogPathBrowseResponse['directories'] = []
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue
+    const absolute = path.join(resolved, entry.name)
+    try {
+      const st = await fs.stat(absolute)
+      if (!st.isDirectory()) continue
+      directories.push({ name: entry.name, path: absolute })
+    } catch (err) {
+      warnings.push({
+        code: 'subdir-inaccessible',
+        message: `cannot read ${absolute}: ${err instanceof Error ? err.message : String(err)}`,
+      })
+    }
+  }
+
+  directories.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+
+  const parentPath = path.dirname(resolved)
+  const marker = catalogMarkerPath(resolved)
+
+  return {
+    path: resolved,
+    parentPath: parentPath === resolved ? null : parentPath,
+    directories,
+    isCatalogRoot: existsSync(marker),
+    warnings,
+  }
 }
 
 stateRoutes.get('/', async (c) => {
@@ -120,6 +184,126 @@ stateRoutes.post('/catalog-path', async (c) => {
     catalogPathLockedByEnv: false,
     userConfigDir: userConfigDir(),
   }
+  return c.json(response)
+})
+
+stateRoutes.post('/catalog-path/browse', async (c) => {
+  let body: unknown
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json(apiError('invalid JSON body', 'bad-request'), 400)
+  }
+
+  const parsed = CatalogPathBrowseInputSchema.safeParse(body)
+  if (!parsed.success) {
+    return c.json(apiError('invalid browse input', 'validation-failed', parsed.error.issues), 400)
+  }
+
+  try {
+    const response = await buildBrowseResponse(parsed.data.path)
+    return c.json(response)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    const code = message.includes('EACCES') || message.includes('EPERM') ? 'permission-denied' : 'invalid-browse-path'
+    const status = code === 'permission-denied' ? 403 : 400
+    return c.json(apiError(message, code), status)
+  }
+})
+
+stateRoutes.post('/catalog-path/validate', async (c) => {
+  let body: unknown
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json(apiError('invalid JSON body', 'bad-request'), 400)
+  }
+
+  const parsed = CatalogPathValidateInputSchema.safeParse(body)
+  if (!parsed.success) {
+    return c.json(apiError('invalid catalog path input', 'validation-failed', parsed.error.issues), 400)
+  }
+
+  const isEnvLocked = Boolean(process.env.CATALOG_PATH)
+  const messages: CatalogPathValidateResponse['messages'] = []
+  let resolvedPath: string | null = null
+  let isValid = false
+
+  try {
+    resolvedPath = await resolveAndValidateCatalogPath(parsed.data.catalogPath)
+    isValid = true
+  } catch (err) {
+    messages.push({
+      level: 'error',
+      code: 'invalid-catalog-path',
+      message: err instanceof Error ? err.message : String(err),
+    })
+  }
+
+  let currentPath = ''
+  try {
+    currentPath = getCatalogPath()
+  } catch {
+    currentPath = ''
+  }
+
+  const isSamePath = Boolean(resolvedPath && currentPath && resolvedPath === currentPath)
+
+  if (isEnvLocked) {
+    messages.push({
+      level: 'error',
+      code: 'catalog-path-locked-by-env',
+      message: 'CATALOG_PATH está activo y bloquea el relink desde la UI.',
+    })
+  }
+
+  if (isValid && isSamePath) {
+    messages.push({
+      level: 'info',
+      code: 'same-path',
+      message: 'La ruta coincide con la actual; no habrá cambios.',
+    })
+  }
+
+  if (isValid && !isSamePath) {
+    messages.push(
+      {
+        level: 'warning',
+        code: 'move-rename-intended',
+        message: 'Este relink está pensado para el MISMO catálogo movido o renombrado.',
+      },
+      {
+        level: 'warning',
+        code: 'shared-state-risk',
+        message: 'Si apuntas a otro catálogo distinto, pueden aparecer orphans o blockers por estado compartido de máquina.',
+      },
+      {
+        level: 'warning',
+        code: 'avoid-during-apply',
+        message: 'No cambies la ruta durante Apply.',
+      },
+      {
+        level: 'info',
+        code: 'no-auto-apply',
+        message: 'Este cambio no reinstala ni ejecuta Apply automáticamente.',
+      },
+      {
+        level: 'info',
+        code: 'history-preserved-same-catalog',
+        message: 'Si es el mismo catálogo movido/renombrado, instalaciones e historial deberían conservarse.',
+      },
+    )
+  }
+
+  const response: CatalogPathValidateResponse = {
+    resolvedPath,
+    isValid,
+    isSamePath,
+    isEnvLocked,
+    riskLevel: isEnvLocked || !isValid ? 'blocked' : isSamePath ? 'none' : 'medium',
+    messages,
+  }
+
   return c.json(response)
 })
 

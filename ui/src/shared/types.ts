@@ -128,6 +128,41 @@ export interface AppStateResponse {
   userConfigDir: string
 }
 
+export type CatalogPathRiskLevel = 'none' | 'low' | 'medium' | 'blocked'
+
+export interface CatalogPathBrowseEntry {
+  name: string
+  path: string
+}
+
+export interface CatalogPathBrowseWarning {
+  code: string
+  message: string
+}
+
+export interface CatalogPathBrowseResponse {
+  path: string
+  parentPath: string | null
+  directories: CatalogPathBrowseEntry[]
+  isCatalogRoot: boolean
+  warnings: CatalogPathBrowseWarning[]
+}
+
+export interface CatalogPathValidationMessage {
+  level: 'info' | 'warning' | 'error'
+  code: string
+  message: string
+}
+
+export interface CatalogPathValidateResponse {
+  resolvedPath: string | null
+  isValid: boolean
+  isSamePath: boolean
+  isEnvLocked: boolean
+  riskLevel: CatalogPathRiskLevel
+  messages: CatalogPathValidationMessage[]
+}
+
 export interface ProjectsResponse {
   projects: ProjectEntry[]
 }
