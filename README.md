@@ -6,7 +6,7 @@ One git-versioned catalog of your customs (skills, agents, patches), a local
 web UI to install and uninstall them atomically, and a manager agent that
 writes the files for you when you ask.
 
-**Status**: v1.4.1. Local-use stable. Linux and macOS supported.
+**Status**: v1.4.2. Local-use stable. Linux and macOS supported.
 
 ---
 

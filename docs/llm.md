@@ -187,7 +187,7 @@ Opencode. The code handles these asymmetries explicitly — never paper over the
 - **Platforms**: Linux + macOS. Windows is not supported (path + rename
   semantics; `tar` differences).
 
-See `ui/package.json` for exact versions. Current release: **v1.4.1** (bumped in
+See `ui/package.json` for exact versions. Current release: **v1.4.2** (bumped in
 `ui/package.json.version` and `ui/src/server/index.ts` `/api/health.version`).
 
 ---
@@ -1340,12 +1340,12 @@ at new content — prior installs surface as orphans until cleaned up.
 
 ## 12. Release and versioning
 
-Current version: **v1.4.1**. Semver.
+Current version: **v1.4.2**. Semver.
 
 **Bump locations** (update all on release):
 1. `ui/package.json.version`
 2. `ui/src/server/index.ts` inside `/api/health` response (`version: '1.0.7'`)
-3. Status line in `README.md` (`Status: v1.4.1.`)
+3. Status line in `README.md` (`Status: v1.4.2.`)
 
 **Commit pattern**: conventional commits, English. Examples from git log:
 - `feat: add install.sh and update.sh scripts, bump to v1.0.7`
