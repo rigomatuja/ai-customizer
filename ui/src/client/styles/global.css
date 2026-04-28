@@ -839,6 +839,85 @@ button:disabled {
   gap: 0.35rem;
 }
 
+.catalog-path-modal {
+  gap: 0.9rem;
+}
+
+.catalog-path-modal-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.catalog-path-modal-head h3 {
+  margin: 0;
+}
+
+.catalog-path-current {
+  border: 1px solid var(--border);
+  background: var(--bg-elev-2);
+  border-radius: 6px;
+  padding: 0.65rem 0.75rem;
+}
+
+.catalog-path-current p {
+  margin: 0;
+}
+
+.catalog-path-current-code {
+  margin-top: 0.25rem !important;
+  word-break: break-all;
+}
+
+.catalog-path-controls {
+  align-items: center;
+}
+
+.catalog-path-warning-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--fg-muted);
+}
+
+.catalog-path-warning-list li {
+  margin: 0.15rem 0;
+}
+
+.catalog-path-directories {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.catalog-path-row {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  text-align: left;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  border-radius: 6px;
+  padding: 0.5rem 0.65rem;
+  cursor: pointer;
+}
+
+.catalog-path-row:hover {
+  background: var(--bg-elev-2);
+  border-color: var(--accent);
+}
+
+.catalog-path-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.catalog-path-row-name {
+  font-weight: 500;
+}
+
 /* Install controls */
 .install-active {
   display: block;

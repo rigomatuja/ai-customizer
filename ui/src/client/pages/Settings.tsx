@@ -623,43 +623,76 @@ function CatalogPathPanel({
 
         {showBrowseModal ? (
           <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Selector de carpeta de catálogo">
-            <div className="modal-card">
-              <h3>Seleccionar carpeta</h3>
-              {browseLoading ? <p className="muted">Cargando…</p> : null}
-              {browseError ? <p className="error small">{browseError}</p> : null}
+            <div className="modal-card catalog-path-modal">
+              <div className="catalog-path-modal-head">
+                <h3>Seleccionar carpeta de catálogo</h3>
+                <p className="muted small">
+                  Estás navegando carpetas locales; selecciona una carpeta que contenga
+                  <code> .ai-customizer/catalog.json </code>.
+                </p>
+              </div>
+
+              {browseLoading ? <p className="muted">Cargando carpetas…</p> : null}
+              {browseError ? <p className="error small">No se pudo cargar esta carpeta: {browseError}</p> : null}
               {browse ? (
                 <>
-                  <p className="small"><code>{browse.path}</code></p>
-                  <div className="row">
+                  <div className="catalog-path-current" aria-live="polite">
+                    <p className="small muted">Carpeta actual</p>
+                    <p className="catalog-path-current-code">
+                      <code>{browse.path}</code>
+                    </p>
+                  </div>
+
+                  <div className="catalog-path-controls row">
                     <button className="button button-secondary" disabled={!browse.parentPath || browseLoading} onClick={() => void loadBrowse(browse.parentPath ?? undefined)}>
-                      Subir
+                      Subir al directorio padre
                     </button>
                     <span className={`badge badge-${browse.isCatalogRoot ? 'ok' : 'warn'}`}>
-                      {browse.isCatalogRoot ? 'catálogo válido' : 'sin marker de catálogo'}
+                      {browse.isCatalogRoot ? 'Catálogo válido' : 'Carpeta no válida aún'}
                     </span>
                   </div>
+
+                  {!browse.isCatalogRoot ? (
+                    <p className="muted small">
+                      Esta carpeta todavía no se puede usar: falta el marker
+                      <code> .ai-customizer/catalog.json </code>.
+                    </p>
+                  ) : (
+                    <p className="muted small">Esta carpeta ya se puede usar como catálogo.</p>
+                  )}
+
                   {browse.warnings.length > 0 ? (
-                    <ul className="catalog-path-list">
+                    <ul className="catalog-path-warning-list">
                       {browse.warnings.map((w) => (
-                        <li key={`${w.code}-${w.message}`} className="small muted">Warning: {w.message}</li>
+                        <li key={`${w.code}-${w.message}`} className="small muted">Aviso: {w.message}</li>
                       ))}
                     </ul>
                   ) : null}
-                  <ul className="catalog-path-list">
-                    {browse.directories.map((entry) => (
-                      <li key={entry.path}>
-                        <button className="button button-secondary" onClick={() => void loadBrowse(entry.path)}>
-                          {entry.name}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+
+                  <div className="catalog-path-directories" aria-label="Subdirectorios disponibles">
+                    <p className="small muted">Subdirectorios</p>
+                    {browse.directories.length === 0 ? (
+                      <p className="muted small">No hay subdirectorios en esta carpeta.</p>
+                    ) : (
+                      <ul className="catalog-path-list">
+                        {browse.directories.map((entry) => (
+                          <li key={entry.path}>
+                            <button className="catalog-path-row" onClick={() => void loadBrowse(entry.path)}>
+                              <span className="catalog-path-row-name">{entry.name}</span>
+                              <span className="muted small">Abrir</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
                   <div className="row">
                     <button className="button" disabled={!browse.isCatalogRoot} onClick={() => { setDraftPath(browse.path); setShowBrowseModal(false) }}>
                       Usar esta carpeta
                     </button>
                     <button className="button button-secondary" onClick={() => setShowBrowseModal(false)}>
-                      Cerrar
+                      Cancelar
                     </button>
                   </div>
                 </>
