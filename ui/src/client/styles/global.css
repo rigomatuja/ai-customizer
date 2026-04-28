@@ -864,9 +864,20 @@ button:disabled {
   margin: 0;
 }
 
+.catalog-path-current-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
 .catalog-path-current-code {
   margin-top: 0.25rem !important;
   word-break: break-all;
+}
+
+.catalog-path-current-hint {
+  margin-top: 0.45rem !important;
 }
 
 .catalog-path-controls {

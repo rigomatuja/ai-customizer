@@ -637,29 +637,27 @@ function CatalogPathPanel({
               {browse ? (
                 <>
                   <div className="catalog-path-current" aria-live="polite">
-                    <p className="small muted">Carpeta actual</p>
+                    <div className="catalog-path-current-head">
+                      <p className="small muted">Carpeta actual</p>
+                      <span className={`badge badge-${browse.isCatalogRoot ? 'ok' : 'warn'}`}>
+                        {browse.isCatalogRoot ? 'Catálogo válido' : 'No es catálogo'}
+                      </span>
+                    </div>
                     <p className="catalog-path-current-code">
                       <code>{browse.path}</code>
+                    </p>
+                    <p className="catalog-path-current-hint small muted">
+                      {browse.isCatalogRoot
+                        ? 'Esta carpeta contiene .ai-customizer/catalog.json y ya se puede usar como catálogo.'
+                        : 'Falta .ai-customizer/catalog.json; elige otra carpeta o navega dentro de esta.'}
                     </p>
                   </div>
 
                   <div className="catalog-path-controls row">
                     <button className="button button-secondary" disabled={!browse.parentPath || browseLoading} onClick={() => void loadBrowse(browse.parentPath ?? undefined)}>
-                      Subir al directorio padre
+                      ↑ Subir al directorio padre
                     </button>
-                    <span className={`badge badge-${browse.isCatalogRoot ? 'ok' : 'warn'}`}>
-                      {browse.isCatalogRoot ? 'Catálogo válido' : 'Carpeta no válida aún'}
-                    </span>
                   </div>
-
-                  {!browse.isCatalogRoot ? (
-                    <p className="muted small">
-                      Esta carpeta todavía no se puede usar: falta el marker
-                      <code> .ai-customizer/catalog.json </code>.
-                    </p>
-                  ) : (
-                    <p className="muted small">Esta carpeta ya se puede usar como catálogo.</p>
-                  )}
 
                   {browse.warnings.length > 0 ? (
                     <ul className="catalog-path-warning-list">
