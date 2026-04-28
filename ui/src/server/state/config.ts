@@ -59,6 +59,18 @@ export async function updateToolsOverride(
   return updated
 }
 
+export async function updateCatalogPath(catalogPath: string): Promise<UserConfig | null> {
+  const current = await readUserConfig()
+  if (!current) return null
+  const updated: UserConfig = {
+    ...current,
+    catalogPath,
+    updatedAt: new Date().toISOString(),
+  }
+  await writeUserConfig(updated)
+  return updated
+}
+
 export async function ensureUserConfigDir(): Promise<void> {
   const p = userConfigPaths()
   await ensureDir(p.root)

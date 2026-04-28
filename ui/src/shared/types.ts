@@ -123,6 +123,8 @@ export interface AppStateResponse {
   initialized: boolean
   config: UserConfig | null
   catalogPath: string
+  catalogPathSource: 'env' | 'config' | 'discovered'
+  catalogPathLockedByEnv: boolean
   userConfigDir: string
 }
 

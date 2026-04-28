@@ -84,6 +84,8 @@ export const api = {
   initState: () => jsonPost<{ initialized: boolean; config: UserConfig }>('/api/state/init', {}),
   updateToolsOverride: (override: ToolsOverride | null) =>
     jsonPost<{ config: UserConfig }>('/api/state/tools-override', override),
+  updateCatalogPath: (catalogPath: string) =>
+    jsonPost<AppStateResponse>('/api/state/catalog-path', { catalogPath }),
 
   projects: () => request<ProjectsResponse>('/api/state/projects'),
   createProject: (input: ProjectCreateInput) =>

@@ -169,6 +169,11 @@ export type ProjectCreateInput = z.infer<typeof ProjectCreateInputSchema>
 export const ProjectUpdateInputSchema = ProjectCreateInputSchema.partial()
 export type ProjectUpdateInput = z.infer<typeof ProjectUpdateInputSchema>
 
+export const CatalogPathUpdateInputSchema = z.object({
+  catalogPath: z.string().min(1),
+})
+export type CatalogPathUpdateInput = z.infer<typeof CatalogPathUpdateInputSchema>
+
 export const TargetScopeSchema = z.union([
   z.object({ scope: z.literal('global') }),
   z.object({ scope: z.literal('project'), projectId: z.string().min(1) }),

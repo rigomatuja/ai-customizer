@@ -12,7 +12,7 @@ import type {
 import { useAsyncWithRefetch, type AsyncState } from '../hooks/useAsync'
 import { useAppState, useProjects, useTools } from '../hooks/useAppState'
 
-export function Settings() {
+export function Settings({ onCatalogRelinked }: { onCatalogRelinked: () => void }) {
   const { state: stateResult, refetch: refetchState } = useAppState()
   const toolsState = useTools()
   const { state: projectsResult, refetch: refetchProjects } = useProjects()
@@ -24,7 +24,7 @@ export function Settings() {
         <p className="subtitle">Configuration + tool detection + known projects.</p>
       </header>
 
-      <CatalogPathPanel state={stateResult} />
+      <CatalogPathPanel state={stateResult} onSaved={onCatalogRelinked} />
       <ManagerPanel />
       <ToolsPanel tools={toolsState} state={stateResult} onSaved={refetchState} />
       <GentleAiPanel />
@@ -481,7 +481,48 @@ function OrphansPanel() {
   )
 }
 
-function CatalogPathPanel({ state }: { state: AsyncState<AppStateResponse> }) {
+function CatalogPathPanel({
+  state,
+  onSaved,
+}: {
+  state: AsyncState<AppStateResponse>
+  onSaved: () => void
+}) {
+  const [draftPath, setDraftPath] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saveInfo, setSaveInfo] = useState<string | null>(null)
+
+  const isLocked =
+    state.status === 'success' && (state.data.catalogPathLockedByEnv || state.data.catalogPathSource === 'env')
+
+  const handleSave = async () => {
+    setSaving(true)
+    setSaveError(null)
+    setSaveInfo(null)
+    try {
+      const value = draftPath.trim()
+      if (!value) {
+        setSaveError('Introduce una ruta antes de guardar.')
+        return
+      }
+      await api.updateCatalogPath(value)
+      setSaveInfo(
+        'Ruta actualizada. Si es el mismo catálogo movido/renombrado, instalaciones e historial se conservan; no hace falta reinstalar.',
+      )
+      setDraftPath('')
+      onSaved()
+    } catch (err) {
+      if (err instanceof ApiClientError && err.code === 'catalog-path-locked-by-env') {
+        setSaveError('CATALOG_PATH está activo: la ruta queda bloqueada desde entorno.')
+        return
+      }
+      setSaveError(err instanceof ApiClientError ? err.message : String(err))
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <section className="panel">
       <h2>Catalog</h2>
@@ -490,7 +531,8 @@ function CatalogPathPanel({ state }: { state: AsyncState<AppStateResponse> }) {
       ) : state.status === 'error' ? (
         <p className="error">{state.error.message}</p>
       ) : state.status === 'success' ? (
-        <dl className="kv">
+        <>
+          <dl className="kv">
           <dt>Path</dt>
           <dd>
             <code className="monospace">{state.data.catalogPath}</code>
@@ -501,17 +543,45 @@ function CatalogPathPanel({ state }: { state: AsyncState<AppStateResponse> }) {
           </dd>
           <dt>Initialized</dt>
           <dd>{state.data.initialized ? 'yes' : 'no'}</dd>
+          <dt>Path source</dt>
+          <dd>
+            <span className={`badge badge-${state.data.catalogPathSource === 'env' ? 'warn' : 'ok'}`}>
+              {state.data.catalogPathSource}
+            </span>
+          </dd>
           {state.data.config ? (
             <>
               <dt>Initialized at</dt>
               <dd className="muted">{state.data.config.createdAt}</dd>
             </>
           ) : null}
-        </dl>
+          </dl>
+
+        <div className="row">
+          <input
+            className="input"
+            type="text"
+            placeholder="Nueva ruta de catálogo (move/rename relink)"
+            value={draftPath}
+            onChange={(e) => setDraftPath(e.target.value)}
+            disabled={isLocked || saving}
+          />
+          <button className="button" onClick={() => void handleSave()} disabled={isLocked || saving}>
+            {saving ? 'Guardando…' : 'Guardar ruta'}
+          </button>
+        </div>
+        {isLocked ? (
+          <p className="muted small">
+            Edición bloqueada: <code>CATALOG_PATH</code> tiene prioridad y no se puede sobrescribir desde la UI.
+          </p>
+        ) : null}
+        {saveError ? <p className="error small">{saveError}</p> : null}
+          {saveInfo ? <p className="muted small">{saveInfo}</p> : null}
+        </>
       ) : null}
       <p className="muted small">
-        To change the catalog path, stop the UI and restart it from a different catalog clone, or set the{' '}
-        <code>CATALOG_PATH</code> env var.
+        Recomendado para rename/move del MISMO catálogo. Evita cambiar la ruta durante Apply. Si apuntas a otro catálogo distinto,
+        pueden aparecer orphans o blockers hasta reconciliar estado/instalaciones.
       </p>
     </section>
   )

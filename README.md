@@ -100,6 +100,11 @@ After cloning, the catalog root is `<wherever-you-cloned>/my-catalog/`.
 Remember that path — the UI shows it in Settings and the manager uses it
 when it writes files.
 
+If you later move or rename the same catalog folder, update the path from
+**Settings → Catalog**. You do not need to reinstall customs just because the
+folder path changed. If `CATALOG_PATH` is set, that env var stays authoritative
+and Settings shows the path as locked.
+
 ### 2. Install and launch — one script
 
 From the catalog root:
@@ -763,7 +768,7 @@ Environment overrides:
 
 | Var | Default | Purpose |
 |---|---|---|
-| `CATALOG_PATH` | parent of `ui/` | Override catalog root |
+| `CATALOG_PATH` | unset | Hard override for catalog root; locks Settings catalog-path editing |
 | `AIC_USER_CONFIG_DIR` | `~/.config/ai-customizer/` | Override user state dir |
 | `PORT` | `3236` | Override Hono server port |
 | `AIC_LOG_JSON` | unset | Set to `1` for line-delimited JSON logs |
@@ -803,6 +808,13 @@ or pass `?force=1` on the DELETE to leave the files on disk.
 path".**
 Your `~/.claude/agents/manager.md` is a symlink pointing inside this
 repo, or your catalog path is aliased through a symlink. Unsymlink it.
+
+**I moved or renamed my catalog folder.**
+Open **Settings → Catalog**, enter the new folder path, and save. The path must
+contain `.ai-customizer/catalog.json`. For the same catalog moved/renamed,
+installations and history stay valid; avoid changing the path while Apply is
+running. If you point at a different catalog, the shared state dir may surface
+orphans or blockers until you reconcile it.
 
 **Logs.**
 Default human-readable to stderr. Set `AIC_LOG_JSON=1` for structured

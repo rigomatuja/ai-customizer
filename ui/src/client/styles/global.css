@@ -789,6 +789,17 @@ button:disabled {
   font-size: 0.9rem;
 }
 
+.input {
+  min-width: 320px;
+  padding: 0.35rem 0.6rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
 /* Install controls */
 .install-active {
   display: block;

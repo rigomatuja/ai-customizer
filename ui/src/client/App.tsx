@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { Layout } from './components/Layout'
 import { useAppState } from './hooks/useAppState'
@@ -13,6 +14,12 @@ import { Welcome } from './pages/Welcome'
 
 export function App() {
   const { state, refetch } = useAppState()
+  const [catalogEpoch, setCatalogEpoch] = useState(0)
+
+  const handleCatalogRelinked = () => {
+    setCatalogEpoch((value) => value + 1)
+    refetch()
+  }
 
   if (state.status === 'loading' || state.status === 'idle') {
     return (
@@ -54,7 +61,7 @@ export function App() {
 
   return (
     <Layout>
-      <Routes>
+      <Routes key={catalogEpoch}>
         <Route path="/" element={<Home />} />
         <Route path="/catalog" element={<CatalogBrowser />} />
         <Route path="/catalog/:type/:id" element={<CustomDetail />} />
@@ -62,7 +69,7 @@ export function App() {
         <Route path="/apply" element={<Apply />} />
         <Route path="/history" element={<History />} />
         <Route path="/triggers" element={<Triggers />} />
-        <Route path="/settings" element={<Settings />} />
+        <Route path="/settings" element={<Settings onCatalogRelinked={handleCatalogRelinked} />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Layout>
