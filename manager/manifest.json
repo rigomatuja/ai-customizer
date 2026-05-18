@@ -70,7 +70,12 @@
       "version": "0.9.1",
       "createdAt": "2026-04-26T00:00:00Z",
       "changelog": "Catch up with current Opencode spec on directory naming. Per opencode.ai/docs/config the supported convention is the PLURAL form `~/.config/opencode/agents/` and `<project>/.opencode/agents/`; singular `agent/` is backwards-compatible only. All references in the manager body that pointed at the singular path are now plural — Step 0.3 read scope, Step 3.9 enumeration paths, Step 4.4 agent file install destinations, the terminology glossary subagent row, and the cross-reference text. Pure documentation/protocol fix that mirrors the v1.4.1 installer change which actually flipped the disk layout."
+    },
+    {
+      "version": "0.9.2",
+      "createdAt": "2026-05-18T00:00:00Z",
+      "changelog": "Clarifies Claude project-scoped agent placement. Step 3.3 now states that Claude project agents install to `<project>/.claude/agents/<id>.md` per official Claude Code project subagent docs, and that `<project>/.claude/CLAUDE.md` is project memory/instructions only, not the primary agent registry."
     }
   ],
-  "activeVersion": "0.9.1"
+  "activeVersion": "0.9.2"
 }

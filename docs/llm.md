@@ -146,10 +146,12 @@ Each clone is independent.         catalogs on that machine.            Written 
     triggers.json                                                         AGENTS.md (+ .original)
   ui/ (the web UI itself)
 
-                                 <project>/
-                                   .claude/skills/<id>/...        (project-scoped installs)
-                                   .opencode/skills/<id>/...
-                                   .atl/hook-registry.json        (gentle-ai convention, not .ai-customizer/)
+                                  <project>/
+                                    .claude/skills/<id>/...        (project-scoped installs)
+                                    .claude/agents/<id>.md         (Claude project subagents)
+                                    .claude/CLAUDE.md              (Claude project memory, not agent registry)
+                                    .opencode/skills/<id>/...
+                                    .atl/hook-registry.json        (gentle-ai convention, not .ai-customizer/)
 ```
 
 **Who writes what.**
@@ -161,10 +163,12 @@ Each clone is independent.         catalogs on that machine.            Written 
 | UI client       | no                       | via UI server            | no        |
 | Human           | anywhere                 | never (let the UI do it) | never (let Apply do it) |
 
-**Asymmetries.** Claude tool dir uses `agents/` (plural); Opencode uses `agent/`
-(singular). Claude has slash commands at `~/.claude/commands/`; Opencode has
-none. The master patch targets are `CLAUDE.md` for Claude, `AGENTS.md` for
-Opencode. The code handles these asymmetries explicitly — never paper over them.
+**Asymmetries.** Claude project agents are subagent files under
+`<project>/.claude/agents/<id>.md`; `<project>/.claude/CLAUDE.md` is project
+memory/instructions, not the primary agent registry. Claude has slash commands
+at `~/.claude/commands/`; Opencode has none. The master patch targets are
+`CLAUDE.md` for Claude, `AGENTS.md` for Opencode. The code handles these
+asymmetries explicitly — never paper over them.
 
 ---
 
@@ -187,7 +191,7 @@ Opencode. The code handles these asymmetries explicitly — never paper over the
 - **Platforms**: Linux + macOS. Windows is not supported (path + rename
   semantics; `tar` differences).
 
-See `ui/package.json` for exact versions. Current release: **v1.4.2** (bumped in
+See `ui/package.json` for exact versions. Current release: **v1.4.3** (bumped in
 `ui/package.json.version` and `ui/src/server/index.ts` `/api/health.version`).
 
 ---
@@ -216,7 +220,7 @@ See `ui/package.json` for exact versions. Current release: **v1.4.2** (bumped in
 │       └── vX.Y.Z/{claude,opencode}/{before,after}.md
 ├── manager/                         # the manager agent (shipped with the template, NOT under customizations/)
 │   ├── manifest.json                # { id: "manager", type: "agent", activeVersion }
-│   └── v0.9.1/
+│   └── v0.9.2/
 │       ├── claude/manager.md        # Claude subagent
 │       ├── claude/slash-command.md  # /manager slash command (Claude-only; v1.0.6+)
 │       └── opencode/manager.md      # Opencode primary agent (YAML frontmatter)
@@ -349,9 +353,13 @@ perspective — it NEVER invents IDs outside the relevant registry. See
 §10.9 for the full protocol.
 
 **Agent**. An invocable subagent (Claude) or primary/subagent (Opencode).
-Installed to `~/.claude/agents/<id>.md` or `~/.config/opencode/agents/<id>.md`
-(note the `agents/` vs `agent/` asymmetry). A Claude agent may ALSO ship
-an optional slash-command companion file
+Claude installs global agents to `~/.claude/agents/<id>.md` and project-scoped
+agents to `<project>/.claude/agents/<id>.md`, matching Claude Code's official
+project subagent location. Do NOT install the primary agent definition into
+`<project>/.claude/CLAUDE.md`; that file is project memory/instructions only
+and may contain at most a short human-facing reference. Opencode installs to
+`~/.config/opencode/agents/<id>.md` or the project equivalent. A Claude agent
+may ALSO ship an optional slash-command companion file
 (`customizations/agents/<id>/v<ver>/claude/slash-command.md`) that the
 installer copies to `<claude>/commands/<id>.md`, enabling `/<id>`
 invocation. Opencode has no equivalent — explicit invocation on that
@@ -846,10 +854,11 @@ No global store. Pages use `useAsync(() => api.xxx())` hooks that return
 - **type**: `agent`
 - **category**: `system`
 - **scope**: `global`
-- **activeVersion**: see `manager/manifest.json`. Currently `0.9.1`.
+- **activeVersion**: see `manager/manifest.json`. Currently `0.9.2`.
   (v0.8.x = gentle-ai enumeration series — §§10.11–10.13;
   v0.9.0 = Show-before-write becomes opt-in — §10.14;
-  v0.9.1 = Opencode `agents/` plural alignment — §10.15.)
+  v0.9.1 = Opencode `agents/` plural alignment — §10.15;
+  v0.9.2 = Claude project agent location clarification — §10.16.)
 
 Not under `customizations/`. Factory-protected. Installed/uninstalled only
 through `/api/manager/*`.
@@ -1263,6 +1272,22 @@ user action beyond the Apply itself. The manager-specific installer
 also pre-cleans old paths before writing fresh ones, so a Reinstall
 from Settings → Manager migrates the manager itself.
 
+### 10.16 v0.9.2 protocol additions (over v0.9.1)
+
+Claude project-scoped agent placement clarified against official
+Claude Code docs. This is a protocol/documentation correction; the
+installer already resolved Claude project agents to the right path.
+
+- **Body §3.3 Agent conventions** now states that Claude project agents
+  install to `<project>/.claude/agents/<id>.md`, matching Claude Code's
+  documented project subagent location.
+- **`<project>/.claude/CLAUDE.md` is not the primary agent registry.**
+  It is project memory/instructions. The manager may mention a project
+  subagent there only as a short human-facing reference when the user
+  explicitly wants that, never as the canonical agent definition.
+- **Docs aligned** in §2, §5, §17, and `docs/DESIGN.md` so future agents
+  do not “fix” Claude project agents into `CLAUDE.md`.
+
 ### 10.2 Claude-only slash command (v1.0.6+)
 
 Installing the manager on Claude creates **two** files:
@@ -1277,7 +1302,7 @@ slash commands, so its install is a single file.
 **Slash-command pattern (general)**. If you need to ship a slash command for
 something other than the manager, the pattern is:
 - A markdown file at `~/.claude/commands/<name>.md` with YAML frontmatter
-  (see `manager/v0.9.1/claude/slash-command.md` for the canonical example).
+  (see `manager/v0.9.2/claude/slash-command.md` for the canonical example).
 - The body typically delegates to a subagent or runs instructions in the
   primary — it's just a prompt template Claude invokes on `/<name>`.
 - Installation goes through the same `ManagerAsset`-style 2-asset atomic
@@ -1298,7 +1323,7 @@ or edit a custom:
 5. **Content templates** — use the shipped templates for SKILL.md / agent.md /
    before.md+after.md shapes.
 
-Read `manager/v0.9.1/claude/manager.md` for the full current text. DO NOT
+Read `manager/v0.9.2/claude/manager.md` for the full current text. DO NOT
 hand-edit this in the catalog; bump a new version folder instead.
 
 ---
@@ -1340,12 +1365,12 @@ at new content — prior installs surface as orphans until cleaned up.
 
 ## 12. Release and versioning
 
-Current version: **v1.4.2**. Semver.
+Current version: **v1.4.3**. Semver.
 
 **Bump locations** (update all on release):
 1. `ui/package.json.version`
 2. `ui/src/server/index.ts` inside `/api/health` response (`version: '1.0.7'`)
-3. Status line in `README.md` (`Status: v1.4.2.`)
+3. Status line in `README.md` (`Status: v1.4.3.`)
 
 **Commit pattern**: conventional commits, English. Examples from git log:
 - `feat: add install.sh and update.sh scripts, bump to v1.0.7`
@@ -1478,6 +1503,7 @@ author a skill, toggle it in the UI, Apply, verify on disk, toggle off, Apply.
 | Primary vs subagent | Subagent pattern (body + optional slash command) | Per-agent `mode:` field — `primary`, `subagent`, or **`all`** (both). Omitted = `all` per Opencode spec. |
 | Project scope dir | `<project>/.claude/` | `<project>/.opencode/` |
 | Project-scoped skills discovery | `.claude/skills/<name>/SKILL.md` | `.opencode/skills/<name>/SKILL.md` |
+| Project-scoped agents discovery | `.claude/agents/<name>.md`; never `.claude/CLAUDE.md` as the primary definition | `.opencode/agents/<name>.md` |
 | Skill `paths` frontmatter (auto-activate on file-match) | supported | **unsupported** (field silently ignored) — semantic match via `description` only |
 | Skill `hooks` frontmatter | supported | unsupported |
 | Skill frontmatter schema | `name`, `description`, `when_to_use`, `paths`, `hooks`, `allowed-tools`, `model`, `effort`, `context`, `agent`, `shell`, `argument-hint`, `arguments`, `disable-model-invocation`, `user-invocable` | `name`, `description`, `license`, `compatibility`, `metadata` (unknown fields ignored) |

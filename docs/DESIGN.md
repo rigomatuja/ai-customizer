@@ -106,6 +106,11 @@ Markdown con frontmatter definiendo un agente invocable. En Claude son subagents
 | global | `~/.claude/agents/<id>.md` | `~/.config/opencode/agent/<id>.md` |
 | project | `<proj>/.claude/agents/<id>.md` | `<proj>/.opencode/agent/<id>.md` |
 
+Claude project agents follow Claude Code's official project subagent location:
+`<proj>/.claude/agents/<id>.md`. `<proj>/.claude/CLAUDE.md` is project memory /
+instructions, not the primary agent registry; it can contain a short reference
+to a project subagent, but not the subagent definition itself.
+
 ### 3.3 Patch
 
 Modifica un archivo master (`CLAUDE.md` o `AGENTS.md`) con find-and-replace sobre una región. Composable vía application-guide.

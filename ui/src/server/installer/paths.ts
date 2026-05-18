@@ -24,7 +24,8 @@ export interface InstallAsset {
  *
  * Disk layout per case:
  *   - skill    → `<skills-dir>/<id>/SKILL.md`
- *   - agent    → `<agents-dir>/<id>.md` (plural for Claude, singular for Opencode)
+ *   - agent    → `<agents-dir>/<id>.md` (Claude project agents live in
+ *                 `<project>/.claude/agents/`, not in project CLAUDE.md)
  *   - slash    → `<claude>/commands/<id>.md`  (Claude only, opt-in)
  */
 export function resolveInstallPath(params: {
@@ -74,9 +75,10 @@ export function resolveInstallPath(params: {
       destFile = path.join(baseOpencode, 'skills', customId, 'SKILL.md')
     }
   } else {
-    // agent — Opencode docs (opencode.ai/docs/config) document plural
-    // directory names as the supported convention; singular `agent/`
-    // is backwards-compatible only. Use `agents/` for both tools.
+    // agent — Claude Code documents project subagents at
+    // `<project>/.claude/agents/<id>.md`. Project CLAUDE.md is memory /
+    // instructions, not the primary subagent registry. Use `agents/` for
+    // both tools.
     if (tool === 'claude') {
       const baseClaude = target.scope === 'global' ? path.join(home, '.claude') : path.join(projectRoot!, '.claude')
       destFile = path.join(baseClaude, 'agents', `${customId}.md`)
